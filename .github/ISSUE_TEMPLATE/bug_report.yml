@@ -11,7 +11,7 @@ body:
   - type: dropdown
     id: version
     attributes:
-      label: HELDASH Version
+      label: MARDASH Version
       description: Which version are you running?
       options:
         - v1.4.0 (latest)
@@ -26,7 +26,7 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: How are you running HELDASH?
+      description: How are you running MARDASH?
       options:
         - Unraid (Community App)
         - Docker Compose
@@ -87,7 +87,7 @@ body:
       label: Logs / Screenshots
       description: |
         Paste relevant logs or attach screenshots.
-        Docker logs: `docker logs heldash`
+        Docker logs: `docker logs mardash`
         Browser console: F12 → Console tab
       placeholder: Paste logs or drag & drop screenshots here
 

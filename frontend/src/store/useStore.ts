@@ -1,29 +1,24 @@
 import { create } from 'zustand'
-import type { Service, Group, Settings, ThemeMode, ThemeAccent, AuthUser, UserRecord, UserGroup, Background } from '../types'
+import type { Service, Group, Settings, ThemeMode, ThemeAccent, AuthUser, Background } from '../types'
 import { api } from '../api'
 import { calcAutoTheme } from '../utils'
-import { LS_GUEST_THEME_MODE, LS_GUEST_THEME_ACCENT } from '../constants'
 
 interface AppState {
-  // App data
   services: Service[]
   groups: Group[]
   settings: Settings | null
   loading: boolean
   error: string | null
 
-  // Auth state
   authUser: AuthUser | null
   isAuthenticated: boolean
   isAdmin: boolean
   needsSetup: boolean
   authReady: boolean
 
-  // User management data
-  users: UserRecord[]
-  userGroups: UserGroup[]
+  backgrounds: Background[]
+  myBackground: string | null
 
-  // App data actions
   loadAll: () => Promise<void>
   loadServices: () => Promise<void>
   createService: (data: Partial<Service>) => Promise<string>
@@ -45,41 +40,19 @@ interface AppState {
   setThemeMode: (mode: ThemeMode) => Promise<void>
   setThemeAccent: (accent: ThemeAccent) => Promise<void>
 
-  // Health polling
   startHealthPolling: () => void
   stopHealthPolling: () => void
 
-  // Auth actions
   checkAuth: () => Promise<void>
-  login: (username: string, password: string, rememberMe?: boolean) => Promise<void>
   logout: () => Promise<void>
-  setupAdmin: (data: { username: string; password: string; first_name: string; last_name: string; email?: string }) => Promise<void>
 
-  // User management actions (admin-only)
-  loadUsers: () => Promise<void>
-  createUser: (data: Partial<UserRecord> & { password: string; user_group_id?: string }) => Promise<void>
-  updateUser: (id: string, data: Partial<UserRecord> & { password?: string }) => Promise<void>
-  deleteUser: (id: string) => Promise<void>
-  loadUserGroups: () => Promise<void>
-  createUserGroup: (data: { name: string; description?: string }) => Promise<void>
-  deleteUserGroup: (id: string) => Promise<void>
-  updateGroupVisibility: (groupId: string, hiddenServiceIds: string[]) => Promise<void>
-  updateArrVisibility: (groupId: string, hiddenInstanceIds: string[]) => Promise<void>
-  updateWidgetVisibility: (groupId: string, hiddenWidgetIds: string[]) => Promise<void>
-  updateDockerAccess: (groupId: string, enabled: boolean) => Promise<void>
-  updateDockerWidgetAccess: (groupId: string, enabled: boolean) => Promise<void>
-
-  // Background images
-  backgrounds: Background[]
-  myBackground: string | null  // URL of the background assigned to the current user's group
   loadBackgrounds: () => Promise<void>
   loadMyBackground: () => Promise<void>
   uploadBackground: (name: string, file: File) => Promise<void>
   deleteBackground: (id: string) => Promise<void>
-  setGroupBackground: (groupId: string, backgroundId: string | null) => Promise<void>
 }
 
-function parseService<T extends { tags: string | string[], check_enabled: number | boolean }>(s: T): T {
+function parseService<T extends { tags: string | string[]; check_enabled: number | boolean }>(s: T): T {
   return {
     ...s,
     tags: typeof s.tags === 'string' ? JSON.parse(s.tags) : s.tags,
@@ -97,18 +70,13 @@ export const useStore = create<AppState>((set, get) => ({
   error: null,
 
   authUser: null,
-  isAuthenticated: false,
-  isAdmin: false,
+  isAuthenticated: true,
+  isAdmin: true,
   needsSetup: false,
   authReady: false,
 
-  users: [],
-  userGroups: [],
-
   backgrounds: [],
   myBackground: null,
-
-  // ── App data ────────────────────────────────────────────────────────────────
 
   loadAll: async () => {
     set({ loading: true, error: null })
@@ -119,14 +87,7 @@ export const useStore = create<AppState>((set, get) => ({
         api.settings.get(),
       ])
       const parsedServices = services.map(parseService)
-      // Non-admins: apply locally stored theme preferences (no API write access)
       const settings = { ...rawSettings }
-      if (!get().isAdmin) {
-        const m = localStorage.getItem(LS_GUEST_THEME_MODE) as ThemeMode | null
-        const a = localStorage.getItem(LS_GUEST_THEME_ACCENT) as ThemeAccent | null
-        if (m) settings.theme_mode = m
-        if (a) settings.theme_accent = a
-      }
       set({ services: parsedServices, groups, settings, loading: false })
       applyTheme(settings)
     } catch (e: unknown) {
@@ -143,7 +104,7 @@ export const useStore = create<AppState>((set, get) => ({
     const parsed = parseService(await api.services.create(data))
     set(state => ({ services: [...state.services, parsed] }))
     if (parsed.check_enabled) {
-      get().checkService(parsed.id).catch(() => { /* ignore */ })
+      get().checkService(parsed.id).catch(() => {})
     }
     return parsed.id
   },
@@ -177,7 +138,7 @@ export const useStore = create<AppState>((set, get) => ({
       services: state.services.map(s => s.id === id
         ? { ...s, last_status: result.status as Service['last_status'], last_checked: result.checked_at }
         : s
-      )
+      ),
     }))
   },
 
@@ -191,7 +152,7 @@ export const useStore = create<AppState>((set, get) => ({
     await Promise.all(orderedIds.map((id, i) => api.groups.update(id, { position: i })))
   },
 
-  reorderServices: async (groupId, orderedIds) => {
+  reorderServices: async (_groupId, orderedIds) => {
     set(state => {
       const idxMap: Record<string, number> = Object.fromEntries(orderedIds.map((id, i) => [id, i]))
       return {
@@ -210,7 +171,7 @@ export const useStore = create<AppState>((set, get) => ({
       services: state.services.map(s => map[s.id]
         ? { ...s, last_status: map[s.id] as Service['last_status'], last_checked: new Date().toISOString() }
         : s
-      )
+      ),
     }))
   },
 
@@ -247,42 +208,21 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   setThemeMode: async (mode) => {
-    if (get().isAdmin) {
-      await get().updateSettings({ theme_mode: mode })
-    } else {
-      localStorage.setItem(LS_GUEST_THEME_MODE, mode)
-      const settings = get().settings
-      if (settings) {
-        const updated = { ...settings, theme_mode: mode }
-        set({ settings: updated })
-        applyTheme(updated)
-      }
-    }
+    await get().updateSettings({ theme_mode: mode })
   },
 
   setThemeAccent: async (accent) => {
-    if (get().isAdmin) {
-      await get().updateSettings({ theme_accent: accent })
-    } else {
-      localStorage.setItem(LS_GUEST_THEME_ACCENT, accent)
-      const settings = get().settings
-      if (settings) {
-        const updated = { ...settings, theme_accent: accent }
-        set({ settings: updated })
-        applyTheme(updated)
-      }
-    }
+    await get().updateSettings({ theme_accent: accent })
   },
-
-  // ── Health polling ───────────────────────────────────────────────────────────
 
   startHealthPolling: () => {
     if (healthCheckInterval) return
-    // Immediate first load so last_status from DB is shown without waiting 15s
     get().loadServices().catch(() => {})
     healthCheckInterval = setInterval(async () => {
-      try { await get().loadServices() } catch { /* ignore */ }
-    }, 15_000)
+      try {
+        await get().loadServices()
+      } catch {}
+    }, 15000)
   },
 
   stopHealthPolling: () => {
@@ -292,132 +232,30 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
-
   checkAuth: async () => {
     try {
-      const { needsSetup, user } = await api.auth.status()
+      const { user } = await api.auth.status()
       set({
-        needsSetup,
-        authUser: user,
-        isAuthenticated: !!user,
-        isAdmin: user?.role === 'admin',
+        needsSetup: false,
+        authUser: user ?? { sub: 'local-admin', username: 'lokal', role: 'admin', groupId: null },
+        isAuthenticated: true,
+        isAdmin: true,
         authReady: true,
       })
     } catch {
-      set({ authReady: true, needsSetup: false, isAuthenticated: false, isAdmin: false })
+      set({
+        authUser: { sub: 'local-admin', username: 'lokal', role: 'admin', groupId: null },
+        authReady: true,
+        needsSetup: false,
+        isAuthenticated: true,
+        isAdmin: true,
+      })
     }
   },
 
-  login: async (username, password, rememberMe) => {
-    const user = await api.auth.login(username, password, rememberMe)
-    set({
-      authUser: user,
-      isAuthenticated: true,
-      isAdmin: user.role === 'admin',
-    })
-  },
-
   logout: async () => {
-    await api.auth.logout()
-    set({ authUser: null, isAuthenticated: false, isAdmin: false })
-    // Auto-refresh page after logout
-    setTimeout(() => window.location.reload(), 100)
+    return
   },
-
-  setupAdmin: async (data) => {
-    const user = await api.auth.setup(data)
-    set({
-      authUser: user,
-      isAuthenticated: true,
-      isAdmin: user.role === 'admin',
-      needsSetup: false,
-    })
-  },
-
-  // ── User management ─────────────────────────────────────────────────────────
-
-  loadUsers: async () => {
-    const users = await api.users.list()
-    set({ users })
-  },
-
-  createUser: async (data) => {
-    const user = await api.users.create(data)
-    set(state => ({ users: [...state.users, user] }))
-  },
-
-  updateUser: async (id, data) => {
-    const user = await api.users.update(id, data)
-    set(state => ({ users: state.users.map(u => u.id === id ? user : u) }))
-  },
-
-  deleteUser: async (id) => {
-    await api.users.delete(id)
-    set(state => ({ users: state.users.filter(u => u.id !== id) }))
-  },
-
-  loadUserGroups: async () => {
-    const userGroups = await api.userGroups.list()
-    set({ userGroups })
-  },
-
-  createUserGroup: async (data) => {
-    const group = await api.userGroups.create(data)
-    set(state => ({ userGroups: [...state.userGroups, { ...group, hidden_arr_ids: [], hidden_widget_ids: [] }] }))
-  },
-
-  deleteUserGroup: async (id) => {
-    await api.userGroups.delete(id)
-    set(state => ({ userGroups: state.userGroups.filter(g => g.id !== id) }))
-  },
-
-  updateGroupVisibility: async (groupId, hiddenServiceIds) => {
-    await api.userGroups.updateVisibility(groupId, hiddenServiceIds)
-    set(state => ({
-      userGroups: state.userGroups.map(g =>
-        g.id === groupId ? { ...g, hidden_service_ids: hiddenServiceIds } : g
-      ),
-    }))
-  },
-
-  updateArrVisibility: async (groupId, hiddenInstanceIds) => {
-    await api.userGroups.updateArrVisibility(groupId, hiddenInstanceIds)
-    set(state => ({
-      userGroups: state.userGroups.map(g =>
-        g.id === groupId ? { ...g, hidden_arr_ids: hiddenInstanceIds } : g
-      ),
-    }))
-  },
-
-  updateWidgetVisibility: async (groupId, hiddenWidgetIds) => {
-    await api.userGroups.updateWidgetVisibility(groupId, hiddenWidgetIds)
-    set(state => ({
-      userGroups: state.userGroups.map(g =>
-        g.id === groupId ? { ...g, hidden_widget_ids: hiddenWidgetIds } : g
-      ),
-    }))
-  },
-
-  updateDockerAccess: async (groupId, enabled) => {
-    await api.userGroups.updateDockerAccess(groupId, enabled)
-    set(state => ({
-      userGroups: state.userGroups.map(g =>
-        g.id === groupId ? { ...g, docker_access: enabled } : g
-      ),
-    }))
-  },
-
-  updateDockerWidgetAccess: async (groupId, enabled) => {
-    await api.userGroups.updateDockerWidgetAccess(groupId, enabled)
-    set(state => ({
-      userGroups: state.userGroups.map(g =>
-        g.id === groupId ? { ...g, docker_widget_access: enabled } : g
-      ),
-    }))
-  },
-
-  // ── Background images ────────────────────────────────────────────────────────
 
   loadBackgrounds: async () => {
     const backgrounds = await api.backgrounds.list()
@@ -448,16 +286,6 @@ export const useStore = create<AppState>((set, get) => ({
     await api.backgrounds.delete(id)
     set(state => ({
       backgrounds: state.backgrounds.filter(b => b.id !== id),
-      userGroups: state.userGroups.map(g => g.background_id === id ? { ...g, background_id: null } : g),
-    }))
-  },
-
-  setGroupBackground: async (groupId, backgroundId) => {
-    await api.backgrounds.setGroupBackground(groupId, backgroundId)
-    set(state => ({
-      userGroups: state.userGroups.map(g =>
-        g.id === groupId ? { ...g, background_id: backgroundId } : g
-      ),
     }))
   },
 }))
@@ -469,15 +297,15 @@ function applyTheme(settings: Settings) {
     : settings.theme_mode
   root.setAttribute('data-theme', mode)
   root.setAttribute('data-accent', settings.theme_accent)
-  root.setAttribute('data-radius',     settings.design_border_radius ?? 'default')
-  root.setAttribute('data-blur',       settings.design_glass_blur    ?? 'medium')
-  root.setAttribute('data-density',    settings.design_density       ?? 'comfortable')
-  root.setAttribute('data-animations', settings.design_animations    ?? 'full')
-  root.setAttribute('data-sidebar',    settings.design_sidebar_style ?? 'default')
-  let el = document.getElementById('heldash-custom-css') as HTMLStyleElement | null
+  root.setAttribute('data-radius', settings.design_border_radius ?? 'default')
+  root.setAttribute('data-blur', settings.design_glass_blur ?? 'medium')
+  root.setAttribute('data-density', settings.design_density ?? 'comfortable')
+  root.setAttribute('data-animations', settings.design_animations ?? 'full')
+  root.setAttribute('data-sidebar', settings.design_sidebar_style ?? 'default')
+  let el = document.getElementById('mardash-custom-css') as HTMLStyleElement | null
   if (!el) {
     el = document.createElement('style')
-    el.id = 'heldash-custom-css'
+    el.id = 'mardash-custom-css'
     document.head.appendChild(el)
   }
   el.textContent = settings.design_custom_css ?? ''

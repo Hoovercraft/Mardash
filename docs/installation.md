@@ -4,25 +4,25 @@
 
 ```bash
 docker run -d \
-  --name heldash \
+  --name mardash \
   -p 8282:8282 \
-  -v /mnt/cache/appdata/heldash:/data \
+  -v /mnt/cache/appdata/mardash:/data \
   -e SECRET_KEY=$(openssl rand -hex 32) \
   -e SECURE_COOKIES=false \
-  ghcr.io/kreuzbube88/heldash:latest
+  ghcr.io/kreuzbube88/mardash:latest
 ```
 
 ## Docker Compose
 
 ```yaml
 services:
-  heldash:
-    image: ghcr.io/kreuzbube88/heldash:latest
-    container_name: heldash
+  mardash:
+    image: ghcr.io/kreuzbube88/mardash:latest
+    container_name: mardash
     ports:
       - 8282:8282
     volumes:
-      - /mnt/cache/appdata/heldash:/data
+      - /mnt/cache/appdata/mardash:/data
       # Für Docker-Verwaltung:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Für Recyclarr-Integration:
@@ -56,7 +56,7 @@ services:
 
 ## Unraid
 
-Community Applications Template verfügbar: `heldash.xml`
+Community Applications Template verfügbar: `mardash.xml`
 
 Import über **Community Applications → Import**
 
@@ -72,4 +72,4 @@ Import über **Community Applications → Import**
 | Backend | Fastify 4, TypeScript |
 | Datenbank | SQLite (WAL-Modus) |
 | Container | Docker, node:20-alpine |
-| Registry | ghcr.io/kreuzbube88/heldash |
+| Registry | ghcr.io/kreuzbube88/mardash |

@@ -6,13 +6,13 @@
 
 - Recyclarr Docker-Container läuft
 - CRON_SCHEDULE deaktiviert: `CRON_SCHEDULE=0 0 1 1 0`
-- Volume-Mount in HELDASH-Container:
+- Volume-Mount in MARDASH-Container:
 
 ```
 -v /pfad/zu/recyclarr/config:/recyclarr
 ```
 
-Umgebungsvariablen in HELDASH setzen:
+Umgebungsvariablen in MARDASH setzen:
 
 ```
 RECYCLARR_CONFIG_PATH=/recyclarr/recyclarr.yml

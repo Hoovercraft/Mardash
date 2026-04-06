@@ -710,9 +710,9 @@ interface Props {
 
 export function Dashboard({ onEdit }: Props) {
   const { t } = useTranslation('dashboard')
-  const { isAdmin, isAuthenticated } = useStore()
+  const { isAdmin } = useStore()
   const { instances, loadInstances, loadAllStats } = useArrStore()
-  const { items, groups, editMode, guestMode, loading, reorder, reorderGroups, createGroup, showVisibilityOverlay, setShowVisibilityOverlay } = useDashboardStore()
+  const { items, groups, editMode, loading, reorder, reorderGroups, createGroup, showVisibilityOverlay, setShowVisibilityOverlay } = useDashboardStore()
 
   const { loadStats, startPollingAll, stopPollingAll } = useWidgetStore()
   const { loadContainers } = useDockerStore()
@@ -768,10 +768,10 @@ export function Dashboard({ onEdit }: Props) {
 
   // Load bookmarks if not yet loaded
   useEffect(() => {
-    if (isAuthenticated && bookmarks.length === 0) {
+    if (bookmarks.length === 0) {
       loadBookmarks().catch(() => {})
     }
-  }, [isAuthenticated])
+  }, [bookmarks.length])
 
   const isPlaceholder = (type: string) =>
     type === 'placeholder' || type === 'placeholder_app' || type === 'placeholder_widget' || type === 'placeholder_row'
@@ -813,7 +813,7 @@ export function Dashboard({ onEdit }: Props) {
       <div className="empty-state">
         <div className="empty-state-icon">⬡</div>
         <div className="empty-state-text">
-          {guestMode ? t('empty.guest_empty') : t('empty.regular_empty')}
+          {t('empty.regular_empty')}
         </div>
       </div>
     )
@@ -835,8 +835,7 @@ export function Dashboard({ onEdit }: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Visibility overlay toggle (admin + guest mode) */}
-      {isAdmin && guestMode && (
+      {false && (
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button
             className={`btn ${showVisibilityOverlay ? 'btn-primary' : 'btn-ghost'} topbar-mobile-hide`}

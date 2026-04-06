@@ -20,10 +20,10 @@ export async function changelogRoutes(app: FastifyInstance) {
     }
     try {
       const res = await undiciRequest(
-        'https://api.github.com/repos/Kreuzbube88/heldash/releases',
+        'https://api.github.com/repos/Hoovercraft/Mardash/releases',
         {
           method: 'GET',
-          headers: { 'User-Agent': 'heldash/1.0', 'Accept': 'application/vnd.github.v3+json' },
+          headers: { 'User-Agent': 'mardash/1.0', 'Accept': 'application/vnd.github.v3+json' },
           headersTimeout: 5_000,
           bodyTimeout: 5_000,
         }

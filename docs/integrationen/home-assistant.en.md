@@ -12,7 +12,7 @@
 
 1. Open Home Assistant
 2. **Profile → Security → Long-Lived Access Tokens → Create Token**
-3. Copy the token and enter it in HELDASH
+3. Copy the token and enter it in MARDASH
 
 ## Add Panels
 
@@ -118,7 +118,7 @@ Shows all persons (`person.*` entities) from Home Assistant as markers on a map.
 
 Lists all automations configured in Home Assistant.
 
-- Automations can be triggered directly from HELDASH
+- Automations can be triggered directly from MARDASH
 - Enable and disable individual automations via toggle
 - Search field for quick filtering by name
 
@@ -128,9 +128,9 @@ Secured controls for locks (`lock.*`) and alarm panels (`alarm_control_panel.*`)
 
 - Lock cards: opening/closing requires PIN entry in a popover
 - Alarm cards: arming/disarming with PIN confirmation
-- PIN is passed directly to HA — not stored in HELDASH
+- PIN is passed directly to HA — not stored in MARDASH
 
-> PIN protection is UI-side — run HELDASH on a local network only
+> PIN protection is UI-side — run MARDASH on a local network only
 
 ## HA Alerts
 
@@ -148,7 +148,7 @@ Entity-based notifications as toast overlays.
 
 ## Scenarios
 
-Run HA scenes and scripts directly from HELDASH.
+Run HA scenes and scripts directly from MARDASH.
 
 | Type | Description |
 |---|---|

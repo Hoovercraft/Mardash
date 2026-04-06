@@ -52,18 +52,19 @@ const LOG_LEVEL = process.env.LOG_LEVEL ?? 'info'
 // LOG_FORMAT=json → raw JSON (for log aggregators); default: pino-pretty
 const LOG_FORMAT = process.env.LOG_FORMAT ?? 'pretty'
 const NODE_ENV = process.env.NODE_ENV ?? 'development'
-const SECRET_KEY = process.env.SECRET_KEY || 'heldash-dev-secret-change-in-production'
+const LOCAL_AUTH_BYPASS = process.env.LOCAL_AUTH_BYPASS !== 'false'
+const SECRET_KEY = process.env.SECRET_KEY || 'mardash-local-dev-secret'
 const DOCKER_SOCKET = '/var/run/docker.sock'
 
 async function start() {
-  // Remove decoy /data/heldash.db if it exists but is essentially empty (< 1KB)
-  const decoyPath = path.join(DATA_DIR, 'heldash.db')
+  // Remove decoy /data/mardash.db if it exists but is essentially empty (< 1KB)
+  const decoyPath = path.join(DATA_DIR, 'mardash.db')
   if (fs.existsSync(decoyPath)) {
     try {
       const stat = fs.statSync(decoyPath)
       if (stat.size < 1024) {
         fs.unlinkSync(decoyPath)
-        console.log('[DB] Removed empty decoy heldash.db from DATA_DIR root')
+        console.log('[DB] Removed empty decoy mardash.db from DATA_DIR root')
       }
     } catch { /* ignore */ }
   }
@@ -99,13 +100,17 @@ async function start() {
     logLevel: LOG_LEVEL,
     logFormat: LOG_FORMAT,
     dockerSocket: dockerSocketPresent ? 'present' : 'missing',
-    secretKey: process.env.SECRET_KEY ? 'set' : 'DEFAULT (insecure)',
+    secretKey: process.env.SECRET_KEY ? 'set' : 'local default',
+    localAuthBypass: LOCAL_AUTH_BYPASS,
     migrationsApplied,
     nodeEnv: NODE_ENV,
-  }, 'HELDASH starting')
+  }, 'MARDASH starting')
 
-  if (!process.env.SECRET_KEY) {
+  if (!process.env.SECRET_KEY && !LOCAL_AUTH_BYPASS) {
     app.log.warn('SECRET_KEY not set — using insecure default. Set SECRET_KEY env var in production!')
+  }
+  if (LOCAL_AUTH_BYPASS) {
+    app.log.warn('LOCAL_AUTH_BYPASS active — running without real login')
   }
   if (!dockerSocketPresent) {
     app.log.warn(`Docker socket not found at ${DOCKER_SOCKET} — Docker features will be unavailable`)
@@ -152,8 +157,22 @@ async function start() {
     },
   })
 
+  // ── Local auth bypass ─────────────────────────────────────────────────────────
+  if (LOCAL_AUTH_BYPASS) {
+    app.addHook('preHandler', async (req) => {
+      req.user = {
+        sub: 'local-admin',
+        username: 'lokal',
+        role: 'admin',
+        groupId: null,
+      }
+      req.jwtVerify = async () => {}
+    })
+  }
+
   // ── Auth decorators (available on all routes registered after this point) ────
   app.decorate('authenticate', async (req: FastifyRequest, reply: FastifyReply) => {
+    if (LOCAL_AUTH_BYPASS) return
     try {
       await req.jwtVerify()
     } catch {
@@ -162,6 +181,7 @@ async function start() {
   })
 
   app.decorate('requireAdmin', async (req: FastifyRequest, reply: FastifyReply) => {
+    if (LOCAL_AUTH_BYPASS) return
     try {
       await req.jwtVerify()
     } catch {
@@ -305,7 +325,7 @@ async function start() {
   })
 
   await app.listen({ port: PORT, host: '0.0.0.0' })
-  app.log.info({ port: PORT }, 'HELDASH ready')
+  app.log.info({ port: PORT }, 'MARDASH ready')
 
   // ── Recyclarr scheduled sync ─────────────────────────────────────────────────
   initRecyclarrSchedulers(app.log)

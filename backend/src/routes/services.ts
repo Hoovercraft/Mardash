@@ -400,7 +400,7 @@ export async function servicesRoutes(app: FastifyInstance) {
 
       // Send as attachment
       reply.type('application/json')
-      reply.header('Content-Disposition', `attachment; filename="heldash-services-${new Date().toISOString().split('T')[0]}.json"`)
+      reply.header('Content-Disposition', `attachment; filename="mardash-services-${new Date().toISOString().split('T')[0]}.json"`)
       return exportData
     }
   )

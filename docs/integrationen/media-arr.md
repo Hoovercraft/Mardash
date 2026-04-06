@@ -29,7 +29,7 @@
 
 1. Kostenlosen Account auf `themoviedb.org` erstellen
 2. Unter `themoviedb.org/settings/api` → API-Key kopieren
-3. In HELDASH: **Settings → General → TMDB API Key** eintragen
+3. In MARDASH: **Settings → General → TMDB API Key** eintragen
 
 ### Funktionen
 

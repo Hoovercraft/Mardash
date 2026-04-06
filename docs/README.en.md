@@ -1,8 +1,8 @@
-# HELDASH Documentation
+# MARDASH Documentation
 
 > [🇩🇪 Deutsche Version](README.md)
 
-Complete documentation for the HELDASH homelab dashboard.
+Complete documentation for the MARDASH homelab dashboard.
 
 ## Table of Contents
 

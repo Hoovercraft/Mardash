@@ -1,4 +1,4 @@
-# CLAUDE.md — HELDASH
+# CLAUDE.md — MARDASH
 
 Personal homelab dashboard. Self-hosted on Unraid, single Docker container.
 
@@ -15,7 +15,7 @@ Personal homelab dashboard. Self-hosted on Unraid, single Docker container.
 | Auth | @fastify/jwt + @fastify/cookie + bcryptjs (cost 12) |
 | DB | better-sqlite3 (SQLite, WAL, no ORM) |
 | HTTP | undici Pool (service ping, arr proxy, Docker socket) |
-| Registry | ghcr.io/kreuzbube88/heldash |
+| Registry | ghcr.io/kreuzbube88/mardash |
 
 ## Architecture
 
@@ -27,7 +27,7 @@ Personal homelab dashboard. Self-hosted on Unraid, single Docker container.
 - Docker: undici Pool → `/var/run/docker.sock`, SSE via `reply.hijack()`
 - HA WS: one `HaWsClient` per instance, backoff 5s→60s
 
-## Frontend Rules (HELDASH-specific)
+## Frontend Rules (MARDASH-specific)
 
 - All API calls via `api.ts` — never `fetch` directly in components
 - All state mutations via Zustand store — never `api.*` directly in components
@@ -37,7 +37,7 @@ Personal homelab dashboard. Self-hosted on Unraid, single Docker container.
 - Errors → local `error` state → displayed inline in form/modal
 - Status "unknown" = neutral gray dot only — no text, no tooltip
 
-## Backend Rules (HELDASH-specific)
+## Backend Rules (MARDASH-specific)
 
 - Interface for every request body (`CreateXBody`, `PatchXBody`) and DB row (`XRow`)
 - Return `RowType | undefined` from `.get()` — never `unknown`
@@ -93,6 +93,6 @@ CSS: 8px spacing grid, Geist/Space Mono/JetBrains Mono, radius sm→2xl, transit
 Build test:     "Build & Push Docker Image" workflow → version tag
 Release:        "Release Latest" workflow → bumps package.json, creates tag, sets latest
 Unraid update:  docker compose pull && docker compose up -d
-Image:          ghcr.io/kreuzbube88/heldash:<tag>
-Data:           /mnt/cache/appdata/heldash:/data
+Image:          ghcr.io/kreuzbube88/mardash:<tag>
+Data:           /mnt/cache/appdata/mardash:/data
 ```

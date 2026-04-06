@@ -146,7 +146,7 @@
     "no_data": "Keine Daten"
   },
   "onboarding": {
-    "step0_title": "Willkommen bei HELDASH",
+    "step0_title": "Willkommen bei MARDASH",
     "step0_subtitle": "Dein persönliches Homelab-Dashboard. Lass uns in wenigen Schritten alles einrichten. Du kannst diesen Assistenten jederzeit in den Einstellungen erneut starten.",
     "step1_title": "Services hinzufügen",
     "step1_subtitle": "Services sind Kacheln auf dem Dashboard — z.B. Radarr, Sonarr, Nginx etc. Du kannst eigene Icons, URLs und Beschreibungen hinterlegen.",

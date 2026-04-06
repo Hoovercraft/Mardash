@@ -16,7 +16,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const owner = context.repo.owner
-            const packageName = 'heldash'
+            const packageName = 'mardash'
 
             // Fetch all versions
             const versions = await github.paginate(

@@ -19,18 +19,14 @@ interface Props {
 
 export function Sidebar({ page, onNavigate }: Props) {
   const { t } = useTranslation('common')
-  const { settings, services, isAdmin, isAuthenticated, authUser, userGroups } = useStore()
+  const { settings, services } = useStore()
   const { instances } = useArrStore()
   const { widgets, loadStats, startPolling, stopPolling } = useWidgetStore()
+  const { loadContainers } = useDockerStore()
 
-  const userGroupData = userGroups.find(g => g.id === authUser?.groupId)
-  const canSeeDocker = isAdmin || (userGroupData?.docker_access ?? false)
-  const title = settings?.dashboard_title ?? 'HELDASH'
-
+  const title = settings?.dashboard_title ?? 'MARDASH'
   const onlineCount = services.filter(s => s.last_status === 'online').length
   const offlineCount = services.filter(s => s.last_status === 'offline').length
-
-  const { loadContainers } = useDockerStore()
 
   const sidebarWidgets = widgets.filter(w => w.display_location === 'sidebar')
   const hasSidebarDocker = sidebarWidgets.some(w => w.type === 'docker_overview')
@@ -39,12 +35,10 @@ export function Sidebar({ page, onNavigate }: Props) {
     .map(w => w.id)
     .join(',')
 
-  // ── Collapse state ──────────────────────────────────────────────────────────
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem(LS_SIDEBAR_COLLAPSED) === 'true' } catch { return false }
   })
 
-  // Keep --sidebar-width CSS variable on :root in sync (useLayoutEffect avoids flash)
   useLayoutEffect(() => {
     document.documentElement.style.setProperty('--sidebar-width', collapsed ? '64px' : '240px')
   }, [collapsed])
@@ -57,31 +51,28 @@ export function Sidebar({ page, onNavigate }: Props) {
     })
   }
 
-  // ── Widget polling ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!sidebarStatsKey) return
     const pollable = sidebarWidgets.filter(w => w.type !== 'docker_overview' && w.type !== 'custom_button')
     pollable.forEach(w => { loadStats(w.id).catch(() => {}); startPolling(w.id, w.type) })
     return () => pollable.forEach(w => stopPolling(w.id))
-  }, [sidebarStatsKey])
+  }, [sidebarStatsKey, sidebarWidgets, loadStats, startPolling, stopPolling])
 
   useEffect(() => {
     if (!hasSidebarDocker) return
     loadContainers().catch(() => {})
-    const interval = setInterval(() => loadContainers().catch(() => {}), 30_000)
+    const interval = setInterval(() => loadContainers().catch(() => {}), 30000)
     return () => clearInterval(interval)
-  }, [hasSidebarDocker])
+  }, [hasSidebarDocker, loadContainers])
 
   return (
     <>
       <aside className={`sidebar${collapsed ? ' sidebar-collapsed' : ''}`}>
-        {/* Logo */}
         <div className="sidebar-logo">
           <img src="/favicon.png" alt="" className="sidebar-logo-icon" style={{ width: 22, height: 22, objectFit: 'contain' }} />
           {!collapsed && <span className="sidebar-logo-text">{title}</span>}
         </div>
 
-        {/* Online / Offline counter */}
         {services.length > 0 && (
           <div className="sidebar-status">
             <div className="sidebar-status-pill online">
@@ -98,43 +89,20 @@ export function Sidebar({ page, onNavigate }: Props) {
         )}
 
         <NavItem icon={<LayoutDashboard size={16} />} label={t('nav.dashboard')} active={page === 'dashboard'} onClick={() => onNavigate('dashboard')} collapsed={collapsed} />
-
-        {isAuthenticated && (
-          <>
-            <NavItem icon={<AppWindow size={16} />} label={t('nav.apps')} active={page === 'services'} onClick={() => onNavigate('services')} collapsed={collapsed} />
-            <NavItem icon={<Bookmark size={16} />} label={t('nav.bookmarks')} active={page === 'bookmarks'} onClick={() => onNavigate('bookmarks')} collapsed={collapsed} />
-            {(isAdmin || instances.length > 0) && (
-              <NavItem icon={<Tv2 size={16} />} label={t('nav.media')} active={page === 'media'} onClick={() => onNavigate('media')} collapsed={collapsed} />
-            )}
-            {(isAdmin || widgets.length > 0) && (
-              <NavItem icon={<BarChart2 size={16} />} label={t('nav.widgets')} active={page === 'widgets'} onClick={() => onNavigate('widgets')} collapsed={collapsed} />
-            )}
-            {canSeeDocker && (
-              <NavItem icon={<Container size={16} />} label={t('nav.docker')} active={page === 'docker'} onClick={() => onNavigate('docker')} collapsed={collapsed} />
-            )}
-            <NavItem icon={<Home size={16} />} label={t('nav.home_assistant')} active={page === 'home_assistant'} onClick={() => onNavigate('home_assistant')} collapsed={collapsed} />
-            <NavItem icon={<Server size={16} />} label={t('nav.unraid')} active={page === 'unraid'} onClick={() => onNavigate('unraid')} collapsed={collapsed} />
-          </>
-        )}
-
-        {isAuthenticated && (
-          <NavItem icon={<Network size={16} />} label={t('nav.network')} active={page === 'network'} onClick={() => onNavigate('network')} collapsed={collapsed} />
-        )}
-        {isAuthenticated && (
-          <NavItem icon={<HardDrive size={16} />} label={t('nav.backup')} active={page === 'backup'} onClick={() => onNavigate('backup')} collapsed={collapsed} />
-        )}
-        {isAuthenticated && (
-          <NavItem icon={<ScrollText size={16} />} label={t('nav.logbuch')} active={page === 'logbuch'} onClick={() => onNavigate('logbuch')} collapsed={collapsed} />
-        )}
-        {isAdmin && (
-          <NavItem icon={<Link2 size={16} />} label={t('nav.instances')} active={page === 'instances'} onClick={() => onNavigate('instances')} collapsed={collapsed} />
-        )}
-        {isAdmin && (
-          <NavItem icon={<Settings size={16} />} label={t('nav.settings')} active={page === 'settings'} onClick={() => onNavigate('settings')} collapsed={collapsed} />
-        )}
+        <NavItem icon={<AppWindow size={16} />} label={t('nav.apps')} active={page === 'services'} onClick={() => onNavigate('services')} collapsed={collapsed} />
+        <NavItem icon={<Bookmark size={16} />} label={t('nav.bookmarks')} active={page === 'bookmarks'} onClick={() => onNavigate('bookmarks')} collapsed={collapsed} />
+        {(instances.length > 0 || true) && <NavItem icon={<Tv2 size={16} />} label={t('nav.media')} active={page === 'media'} onClick={() => onNavigate('media')} collapsed={collapsed} />}
+        {(widgets.length > 0 || true) && <NavItem icon={<BarChart2 size={16} />} label={t('nav.widgets')} active={page === 'widgets'} onClick={() => onNavigate('widgets')} collapsed={collapsed} />}
+        <NavItem icon={<Container size={16} />} label={t('nav.docker')} active={page === 'docker'} onClick={() => onNavigate('docker')} collapsed={collapsed} />
+        <NavItem icon={<Home size={16} />} label={t('nav.home_assistant')} active={page === 'home_assistant'} onClick={() => onNavigate('home_assistant')} collapsed={collapsed} />
+        <NavItem icon={<Server size={16} />} label={t('nav.unraid')} active={page === 'unraid'} onClick={() => onNavigate('unraid')} collapsed={collapsed} />
+        <NavItem icon={<Network size={16} />} label={t('nav.network')} active={page === 'network'} onClick={() => onNavigate('network')} collapsed={collapsed} />
+        <NavItem icon={<HardDrive size={16} />} label={t('nav.backup')} active={page === 'backup'} onClick={() => onNavigate('backup')} collapsed={collapsed} />
+        <NavItem icon={<ScrollText size={16} />} label={t('nav.logbuch')} active={page === 'logbuch'} onClick={() => onNavigate('logbuch')} collapsed={collapsed} />
+        <NavItem icon={<Link2 size={16} />} label={t('nav.instances')} active={page === 'instances'} onClick={() => onNavigate('instances')} collapsed={collapsed} />
+        <NavItem icon={<Settings size={16} />} label={t('nav.settings')} active={page === 'settings'} onClick={() => onNavigate('settings')} collapsed={collapsed} />
         <NavItem icon={<Info size={16} />} label={t('nav.about')} active={page === 'about'} onClick={() => onNavigate('about')} collapsed={collapsed} />
 
-        {/* Sidebar widgets (hidden when collapsed) */}
         {!collapsed && sidebarWidgets.length > 0 && (
           <div className="sidebar-widgets-section">
             <span className="nav-section-label" style={{ marginTop: 16 }}>{t('sidebar.widgets')}</span>
@@ -146,7 +114,6 @@ export function Sidebar({ page, onNavigate }: Props) {
           </div>
         )}
 
-        {/* Collapse toggle at bottom */}
         <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid var(--glass-border)' }}>
           <button
             className="nav-item sidebar-collapse-btn"
@@ -159,16 +126,17 @@ export function Sidebar({ page, onNavigate }: Props) {
         </div>
       </aside>
 
-      {/* Mobile bottom navigation */}
       <BottomNavBar page={page} onNavigate={onNavigate} />
     </>
   )
 }
 
-// ── NavItem ───────────────────────────────────────────────────────────────────
-
 function NavItem({ icon, label, active, onClick, collapsed }: {
-  icon: React.ReactNode; label: string; active: boolean; onClick: () => void; collapsed?: boolean
+  icon: React.ReactNode
+  label: string
+  active: boolean
+  onClick: () => void
+  collapsed?: boolean
 }) {
   return (
     <button
@@ -189,27 +157,21 @@ function NavItem({ icon, label, active, onClick, collapsed }: {
   )
 }
 
-// ── Bottom navigation bar (mobile only) ────────────────────────────────────────
-
 function BottomNavBar({ page, onNavigate }: { page: string; onNavigate: (p: string) => void }) {
   const { t } = useTranslation('common')
-  const { isAdmin, isAuthenticated, authUser, userGroups } = useStore()
-  const { instances } = useArrStore()
-  const userGroupData = userGroups.find(g => g.id === authUser?.groupId)
-  const canSeeDocker = isAdmin || (userGroupData?.docker_access ?? false)
 
-  const items: { icon: React.ReactNode; label: string; target: string; show: boolean }[] = [
-    { icon: <LayoutDashboard size={20} />, label: t('nav.dashboard'), target: 'dashboard', show: true },
-    { icon: <AppWindow size={20} />, label: t('nav.apps'), target: 'services', show: isAuthenticated },
-    { icon: <Tv2 size={20} />, label: t('nav.media'), target: 'media', show: isAuthenticated && (isAdmin || instances.length > 0) },
-    { icon: <Container size={20} />, label: t('nav.docker'), target: 'docker', show: canSeeDocker },
-    { icon: <Home size={20} />, label: t('nav.home_assistant'), target: 'home_assistant', show: isAuthenticated },
-    { icon: <Settings size={20} />, label: t('nav.settings'), target: 'settings', show: isAdmin },
+  const items: { icon: React.ReactNode; label: string; target: string }[] = [
+    { icon: <LayoutDashboard size={20} />, label: t('nav.dashboard'), target: 'dashboard' },
+    { icon: <AppWindow size={20} />, label: t('nav.apps'), target: 'services' },
+    { icon: <Tv2 size={20} />, label: t('nav.media'), target: 'media' },
+    { icon: <Container size={20} />, label: t('nav.docker'), target: 'docker' },
+    { icon: <Home size={20} />, label: t('nav.home_assistant'), target: 'home_assistant' },
+    { icon: <Settings size={20} />, label: t('nav.settings'), target: 'settings' },
   ]
 
   return (
     <nav className="bottom-nav" aria-label="Mobile navigation">
-      {items.filter(i => i.show).map(item => (
+      {items.map(item => (
         <button
           key={item.target}
           className={`bottom-nav-item${page === item.target ? ' active' : ''}`}
@@ -222,8 +184,6 @@ function BottomNavBar({ page, onNavigate }: { page: string; onNavigate: (p: stri
     </nav>
   )
 }
-
-// ── SidebarWidget ─────────────────────────────────────────────────────────────
 
 function SidebarWidget({ widget }: { widget: Widget }) {
   const { t, i18n } = useTranslation('common')
@@ -258,103 +218,45 @@ function SidebarWidget({ widget }: { widget: Widget }) {
     body = <>
       {row('CPU', `${Math.round(ss.cpu.load * 10) / 10}%`, pctColor(ss.cpu.load))}
       {ss.ram.total > 0 && row('RAM', `${Math.round((ss.ram.used / ss.ram.total) * 100)}%`, pctColor(Math.round(ss.ram.used / ss.ram.total * 100)))}
-      {ss.disks.filter(d => d.total > 0).map(d => {
-        const pct = Math.round((d.used / d.total) * 100)
-        return row(d.name, `${pct}% · ${(d.used / 1024).toFixed(0)}/${(d.total / 1024).toFixed(0)} GB`, pctColor(pct))
-      })}
+      {ss.disk.total > 0 && row('Disk', `${Math.round((ss.disk.used / ss.disk.total) * 100)}%`, pctColor(Math.round(ss.disk.used / ss.disk.total * 100)))}
     </>
-  } else if ((widget.type === 'adguard_home' || widget.type === 'pihole') && 'total_queries' in (s as object)) {
-    const ag = s as AdGuardStats
-    const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n)
-    if (ag.total_queries === -1) {
-      body = <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{t('status.unreachable')}</span>
-    } else {
-      body = <>
-        {row('Queries', fmt(ag.total_queries))}
-        {row('Blocked', `${ag.blocked_percent}%`, 'var(--status-offline)')}
-        {row('Status', ag.protection_enabled ? t('status.protected') : t('status.paused'), ag.protection_enabled ? 'var(--status-online)' : '#f59e0b')}
-      </>
-    }
+  } else if (widget.type === 'adguard_home' && 'total_queries' in (s as object)) {
+    const adg = s as AdGuardStats
+    body = <>
+      {row('Anfragen', String(adg.total_queries))}
+      {row('Blockiert', `${adg.blocked_queries} (${adg.blocked_percent}%)`, 'var(--status-offline)')}
+      {row('Schutz', adg.protection_enabled ? 'Aktiv' : 'Pausiert', adg.protection_enabled ? 'var(--status-online)' : '#f59e0b')}
+    </>
   } else if (widget.type === 'home_assistant' && Array.isArray(s)) {
     const entities = s as HaEntityState[]
-    if (entities.length === 0) return null
-    const haStateColor = (state: string): string | undefined => {
-      if (['on', 'open', 'unlocked', 'playing', 'home', 'active'].includes(state)) return 'var(--status-online)'
-      if (['off', 'closed', 'locked', 'paused', 'idle', 'standby'].includes(state)) return 'var(--text-muted)'
-      return undefined
-    }
-    body = <>
-      {entities.map(e => row(
-        e.label || e.friendly_name || e.entity_id,
-        e.state + (e.unit ? ` ${e.unit}` : ''),
-        haStateColor(e.state)
-      ))}
-    </>
+    body = entities.slice(0, 4).map(e => row(e.label || e.friendly_name || e.entity_id, `${e.state}${e.unit ? ` ${e.unit}` : ''}`))
   } else if (widget.type === 'nginx_pm' && 'proxy_hosts' in (s as object)) {
     const npm = s as NpmStats
     body = <>
-      {row('Proxies', String(npm.proxy_hosts))}
+      {row('Proxy Hosts', String(npm.proxy_hosts))}
       {row('Streams', String(npm.streams))}
-      {row('Certs', String(npm.certificates), npm.cert_expiring_soon > 0 ? '#f59e0b' : undefined)}
-      {npm.cert_expiring_soon > 0 && row('Expiring', String(npm.cert_expiring_soon), '#f59e0b')}
+      {row('Zertifikate', String(npm.certificates))}
     </>
   } else if (widget.type === 'calendar' && Array.isArray(s)) {
     const entries = s as CalendarEntry[]
-    const upcoming = entries.slice(0, 3)
-    if (upcoming.length === 0) return null
-    const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
-    const fmtDate = (d: string) => {
-      const today = new Date(); today.setHours(0, 0, 0, 0)
-      const dd = new Date(d + 'T00:00:00')
-      if (dd.getTime() === today.getTime()) return t('time.today')
-      if (dd.getTime() === today.getTime() + 86400000) return t('time.tomorrow')
-      return dd.toLocaleDateString(dateLocale, { weekday: 'short', day: 'numeric', month: 'short' })
-    }
+    body = entries.slice(0, 3).map(e => row(
+      new Date(`${e.date}T00:00:00`).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US', { day: '2-digit', month: '2-digit' }),
+      e.title
+    ))
+  } else if (widget.type === 'weather' && 'temperature' in (s as object)) {
+    const weather = s as WeatherStats
     body = <>
-      {upcoming.map(e => (
-        <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4 }}>
-          <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 10, flexShrink: 0 }}>{fmtDate(e.date)}</span>
-          <span style={{ color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'right' }}>
-            {e.title}{e.type === 'episode' && e.season_number != null ? ` S${String(e.season_number).padStart(2,'0')}E${String(e.episode_number ?? 0).padStart(2,'0')}` : ''}
-          </span>
-        </div>
-      ))}
-      {entries.length > 3 && <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>{t('time.more', { count: entries.length - 3 })}</span>}
+      {row('Temperatur', `${weather.temperature}°C`)}
+      {row('Wind', `${weather.windspeed} km/h`)}
     </>
-  } else if (widget.type === 'weather' && s) {
-    const w = s as WeatherStats
-    if (w.error) {
-      body = <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{w.error}</span>
-    } else {
-      const SIDEBAR_WEATHER_ICONS: Record<number, string> = {
-        0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
-        45: '🌫️', 48: '🌫️',
-        51: '🌦️', 53: '🌦️', 55: '🌦️',
-        61: '🌧️', 63: '🌧️', 65: '🌧️',
-        71: '🌨️', 73: '🌨️', 75: '🌨️', 77: '🌨️',
-        80: '🌦️', 81: '🌦️', 82: '🌧️',
-        85: '🌨️', 86: '🌨️',
-        95: '⛈️', 96: '⛈️', 99: '⛈️',
-      }
-      const wIcon = SIDEBAR_WEATHER_ICONS[w.weather_code] ?? '🌡️'
-      body = <>
-        {row('Temp', `${wIcon} ${w.temperature}${w.unit}`, 'var(--accent)')}
-        {row(t('docker_widget.feels'), `${w.apparent_temperature}${w.unit}`)}
-        {row(t('docker_widget.humid'), `${w.humidity}%`)}
-        {row(t('docker_widget.wind'), `${w.wind_speed} km/h`)}
-      </>
-    }
-  } else {
-    return null
   }
 
+  if (!body) return null
+
   return (
-    <div
-      className="glass"
-      style={{ borderRadius: 'var(--radius-md)', padding: '10px 12px', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6 }}
-    >
-      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 2 }}>{widget.name}</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11 }}>
+    <div className="glass" style={{ borderRadius: 'var(--radius-lg)', padding: '10px 12px', fontSize: 12 }}>
+      <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--accent)' }}>{widget.name}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {body}
       </div>
     </div>

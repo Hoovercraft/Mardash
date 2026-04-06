@@ -1,5 +1,5 @@
 name: 🌐 Add Translation
-description: Contribute a new language translation to HELDASH
+description: Contribute a new language translation to MARDASH
 title: "[Translation] Add [LANGUAGE] support"
 labels: ["enhancement", "i18n", "translation"]
 body:

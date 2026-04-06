@@ -7,7 +7,7 @@ on:
         required: true
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/heldash
+  IMAGE_NAME: ${{ github.repository_owner }}/mardash
 jobs:
   release:
     runs-on: ubuntu-latest

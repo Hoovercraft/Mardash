@@ -57,9 +57,6 @@ export async function authRoutes(app: FastifyInstance) {
 
   // GET /api/auth/status — public; tells frontend whether setup is needed and who is logged in
   app.get('/api/auth/status', async (req) => {
-    const userCount = (db.prepare('SELECT COUNT(*) as cnt FROM users').get() as { cnt: number }).cnt
-    const needsSetup = userCount === 0
-
     let user = null
     try {
       await req.jwtVerify()
@@ -68,7 +65,7 @@ export async function authRoutes(app: FastifyInstance) {
       // not authenticated – that's fine
     }
 
-    return { needsSetup, user }
+    return { needsSetup: false, user }
   })
 
   // POST /api/auth/setup — creates the first admin user (only if no users exist)
@@ -155,15 +152,13 @@ export async function authRoutes(app: FastifyInstance) {
     return { ok: true }
   })
 
-  // GET /api/auth/me — requires auth
-  app.get('/api/auth/me', { preHandler: [app.authenticate] }, async (req, reply) => {
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.sub) as UserRow | undefined
-    if (!user) return reply.status(404).send({ error: 'User not found' })
+  // GET /api/auth/me — local mode returns request user directly
+  app.get('/api/auth/me', { preHandler: [app.authenticate] }, async (req) => {
     return {
-      sub: user.id,
-      username: user.username,
-      role: user.role,
-      groupId: user.user_group_id,
+      sub: req.user.sub,
+      username: req.user.username,
+      role: req.user.role,
+      groupId: req.user.groupId ?? null,
     }
   })
 }

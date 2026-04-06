@@ -14,7 +14,7 @@ Zentrale Backup-Übersicht für alle Backup-Quellen im Homelab. Warnungen bei ve
 
 ## CA Backup
 
-CA Backup schreibt Logs nach `/boot/logs/`. HELDASH liest diese Logs um Backup-Status und Zeitpunkt zu ermitteln.
+CA Backup schreibt Logs nach `/boot/logs/`. MARDASH liest diese Logs um Backup-Status und Zeitpunkt zu ermitteln.
 
 ### Mount konfigurieren
 

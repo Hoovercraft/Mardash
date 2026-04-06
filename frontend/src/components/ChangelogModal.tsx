@@ -98,7 +98,7 @@ export function ChangelogModal({ onClose }: Props) {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <a
-              href="https://github.com/Kreuzbube88/heldash/releases"
+              href="https://github.com/Kreuzbube88/mardash/releases"
               target="_blank"
               rel="noopener noreferrer"
               style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-muted)', textDecoration: 'none' }}

@@ -22,7 +22,7 @@ export function initDb(dataDir: string): number {
     fs.mkdirSync(dbDir, { recursive: true })
   }
 
-  const dbPath = path.join(dbDir, 'heldash.db')
+  const dbPath = path.join(dbDir, 'mardash.db')
   db = new Database(dbPath)
 
   // Performance settings
@@ -556,7 +556,7 @@ function applySchema(db: Database.Database) {
     INSERT OR IGNORE INTO settings (key, value) VALUES
       ('theme_mode', '"dark"'),
       ('theme_accent', '"cyan"'),
-      ('dashboard_title', '"HELDASH"'),
+      ('dashboard_title', '"Mardash"'),
       ('auth_enabled', 'true'),
       ('auth_mode', '"local"'),
       ('auto_theme_enabled', 'false'),

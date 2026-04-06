@@ -283,7 +283,7 @@ export async function backupRoutes(app: FastifyInstance) {
         }
         const now = new Date().toISOString().split('T')[0]
         reply.header('Content-Type', 'application/json')
-        reply.header('Content-Disposition', `attachment; filename="heldash-docker-export-${now}.json"`)
+        reply.header('Content-Disposition', `attachment; filename="mardash-docker-export-${now}.json"`)
         return exportData
       } finally {
         await dockerPool.destroy()

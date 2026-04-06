@@ -672,7 +672,7 @@ export function BackupPage({ onNavigate }: { onNavigate?: (page: string) => void
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `heldash-docker-export-${new Date().toISOString().split('T')[0]}.json`
+      a.download = `mardash-docker-export-${new Date().toISOString().split('T')[0]}.json`
       a.click()
       URL.revokeObjectURL(url)
       toast({ message: t('toast.export_success'), type: 'success' })

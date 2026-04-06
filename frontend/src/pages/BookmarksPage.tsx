@@ -92,14 +92,12 @@ function BookmarkModal({
 function BookmarkCard({
   bookmark,
   isAdmin,
-  isAuthenticated,
   onEdit,
   onDelete,
   onToggleDashboard,
 }: {
   bookmark: Bookmark
   isAdmin: boolean
-  isAuthenticated: boolean
   onEdit: () => void
   onDelete: () => void
   onToggleDashboard: () => void
@@ -127,7 +125,7 @@ function BookmarkCard({
           <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bookmark.url}</div>
         )}
       </div>
-      {isAuthenticated && (
+      {true && (
         <div
           className="bookmark-actions"
           style={{ display: 'flex', gap: 4, opacity: 0, transition: 'opacity var(--transition-fast)', position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)' }}
@@ -157,7 +155,7 @@ function BookmarkCard({
 export function BookmarksPage() {
   const { t } = useTranslation('bookmarks')
   const { bookmarks, loading, loadBookmarks, createBookmark, updateBookmark, deleteBookmark, toggleDashboard, exportBookmarks, importBookmarks } = useBookmarkStore()
-  const { isAdmin, isAuthenticated } = useStore()
+  const { isAdmin } = useStore()
   const { confirm } = useConfirm()
   const [showModal, setShowModal] = useState(false)
   const [editBookmark, setEditBookmark] = useState<Bookmark | null>(null)
@@ -273,7 +271,6 @@ export function BookmarksPage() {
               key={bm.id}
               bookmark={bm}
               isAdmin={isAdmin}
-              isAuthenticated={isAuthenticated}
               onEdit={() => { setEditBookmark(bm); setShowModal(true) }}
               onDelete={() => handleDelete(bm)}
               onToggleDashboard={() => toggleDashboard(bm.id, bm.show_on_dashboard === 0)}

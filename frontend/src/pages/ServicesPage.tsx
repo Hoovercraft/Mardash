@@ -95,14 +95,12 @@ function SortableGroupSection({
   editMode,
   isDragging,
   isAdmin,
-  isAuthenticated,
 }: {
   section: { label: string; icon: string | null; services: Service[]; id?: string }
   onEdit: (service: Service) => void
   editMode: boolean
   isDragging: boolean
   isAdmin: boolean
-  isAuthenticated: boolean
 }) {
   const { t } = useTranslation('services')
   const { addService, removeItem, isOnDashboard } = useDashboardStore()
@@ -169,7 +167,7 @@ function SortableGroupSection({
             <col style={{ width: '12%' }} />
             <col style={{ width: '10%' }} />
             <col style={{ width: '10%' }} />
-            {isAuthenticated && <col style={{ width: '5%' }} />}
+            <col style={{ width: '5%' }} />
             {isAdmin && <col style={{ width: '12%' }} />}
           </colgroup>
           <thead>
@@ -179,7 +177,7 @@ function SortableGroupSection({
               <th style={thStyle}>{t('table.status')}</th>
               <th className="col-interval" style={thStyle}>{t('table.check')}</th>
               <th style={thStyle}>{t('table.dashboard')}</th>
-              {isAuthenticated && <th style={thStyle}></th>}
+              <th style={thStyle}></th>
               {isAdmin && <th style={{ ...thStyle, textAlign: 'right' }}>{t('table.actions')}</th>}
             </tr>
           </thead>
@@ -312,7 +310,7 @@ function SortableGroupSection({
                     {isOnDashboard('service', s.id) ? t('dashboard_col.yes') : t('dashboard_col.no')}
                   </button>
                 </td>
-                {isAuthenticated && (
+                {true && (
                   <td style={{ ...tdStyle, textAlign: 'center' }}>
                     <button
                       className="btn btn-ghost btn-icon btn-sm"
@@ -353,7 +351,7 @@ function SortableGroupSection({
                   </td>
                 )}
               </tr>
-              {isAuthenticated && uptimeOpen.has(s.id) && (
+              {uptimeOpen.has(s.id) && (
                 <tr style={{ borderBottom: i < sortedServices.length - 1 ? '1px solid var(--glass-border)' : 'none' }}>
                   <td colSpan={isAdmin ? 7 : 6} style={{ padding: '0 12px 8px 12px' }}>
                     <UptimeBar serviceId={s.id} />
@@ -373,7 +371,7 @@ function SortableGroupSection({
 
 export function ServicesPage({ onEdit }: Props) {
   const { t } = useTranslation('services')
-  const { services, groups, isAdmin, isAuthenticated } = useStore()
+  const { services, groups, isAdmin } = useStore()
   const [editMode, setEditMode] = useState(false)
   const [groupOrder, setGroupOrder] = useState<string[]>([])
 
@@ -455,7 +453,7 @@ export function ServicesPage({ onEdit }: Props) {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `heldash-services-${new Date().toISOString().split('T')[0]}.json`
+      a.download = `mardash-services-${new Date().toISOString().split('T')[0]}.json`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -567,7 +565,6 @@ export function ServicesPage({ onEdit }: Props) {
               editMode={editMode}
               isDragging={false}
               isAdmin={isAdmin}
-              isAuthenticated={isAuthenticated}
             />
           ))}
         </SortableContext>

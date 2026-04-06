@@ -24,7 +24,7 @@
     "title": "Unraid verbinden",
     "requires": "Erfordert Unraid 7.2 oder neuer.",
     "api_key_step": "API Key erstellen",
-    "api_key_hint": "Name: z.B. \"HELDASH\" | Rolle: admin | Speichern → Key kopieren"
+    "api_key_hint": "Name: z.B. \"MARDASH\" | Rolle: admin | Speichern → Key kopieren"
   },
   "instance": {
     "add": "Instanz hinzufügen",

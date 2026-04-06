@@ -2,7 +2,7 @@
 
 ## Übersicht
 
-Das Logbuch ist das zentrale Monitoring-Center von HELDASH. Alle Aktivitäten, Service-Zustände, Sync-Verläufe und Docker-Events sind hier an einem Ort zusammengefasst.
+Das Logbuch ist das zentrale Monitoring-Center von MARDASH. Alle Aktivitäten, Service-Zustände, Sync-Verläufe und Docker-Events sind hier an einem Ort zusammengefasst.
 
 ## Homelab Health Score
 

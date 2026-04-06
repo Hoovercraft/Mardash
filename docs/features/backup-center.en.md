@@ -14,7 +14,7 @@ Central backup overview for all backup sources in your homelab. Warnings for out
 
 ## CA Backup
 
-CA Backup writes logs to `/boot/logs/`. HELDASH reads these logs to determine backup status and timestamp.
+CA Backup writes logs to `/boot/logs/`. MARDASH reads these logs to determine backup status and timestamp.
 
 ### Configure the Mount
 

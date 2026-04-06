@@ -13,3 +13,18 @@ declare module 'fastify' {
     requireAdmin: (req: FastifyRequest, reply: FastifyReply) => Promise<void>
   }
 }
+
+
+// local admin bypass
+declare module 'fastify' {
+  interface FastifyRequest {
+    user?: {
+      sub: string
+      username: string
+      role: 'admin' | 'user' | 'guest'
+      groupId?: string | null
+    }
+    jwtVerify: () => Promise<void>
+  }
+}
+

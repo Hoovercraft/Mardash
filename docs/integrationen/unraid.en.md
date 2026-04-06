@@ -2,14 +2,14 @@
 
 ## Overview
 
-HELDASH connects directly to the native Unraid GraphQL API (Unraid 7.2+).
+MARDASH connects directly to the native Unraid GraphQL API (Unraid 7.2+).
 No plugin required. Multiple servers can be managed simultaneously.
 
 ## Set Up a Connection
 
 1. Unraid WebGUI → **Settings → Management Access → API Keys → "Create"**
-2. Enter a name (e.g. "HELDASH"), role: **admin**, copy the key
-3. In HELDASH: **Unraid page → Add Server** → enter URL + API Key → test the connection
+2. Enter a name (e.g. "MARDASH"), role: **admin**, copy the key
+3. In MARDASH: **Unraid page → Add Server** → enter URL + API Key → test the connection
 
 > API key is stored server-side — never transmitted to the browser
 

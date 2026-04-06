@@ -65,45 +65,7 @@ export const api = {
     me: () => req<AuthUser>('/auth/me'),
   },
 
-  users: {
-    list: () => req<UserRecord[]>('/users'),
-    create: (data: Partial<UserRecord> & { password: string; user_group_id?: string }) =>
-      req<UserRecord>('/users', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: Partial<UserRecord> & { password?: string }) =>
-      req<UserRecord>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-    delete: (id: string) => req<void>(`/users/${id}`, { method: 'DELETE' }),
-  },
 
-  userGroups: {
-    list: () => req<UserGroup[]>('/user-groups'),
-    create: (data: { name: string; description?: string }) => req<UserGroup>('/user-groups', { method: 'POST', body: JSON.stringify(data) }),
-    delete: (id: string) => req<void>(`/user-groups/${id}`, { method: 'DELETE' }),
-    updateVisibility: (id: string, hiddenServiceIds: string[]) =>
-      req<{ ok: boolean }>(`/user-groups/${id}/visibility`, {
-        method: 'PUT',
-        body: JSON.stringify({ hidden_service_ids: hiddenServiceIds }),
-      }),
-    updateArrVisibility: (id: string, hiddenArrIds: string[]) =>
-      req<{ ok: boolean }>(`/user-groups/${id}/arr-visibility`, {
-        method: 'PUT',
-        body: JSON.stringify({ hidden_arr_ids: hiddenArrIds }),
-      }),
-    updateWidgetVisibility: (id: string, hiddenWidgetIds: string[]) =>
-      req<{ ok: boolean }>(`/user-groups/${id}/widget-visibility`, {
-        method: 'PUT',
-        body: JSON.stringify({ hidden_widget_ids: hiddenWidgetIds }),
-      }),
-    updateDockerAccess: (id: string, enabled: boolean) =>
-      req<{ ok: boolean }>(`/user-groups/${id}/docker-access`, {
-        method: 'PUT',
-        body: JSON.stringify({ enabled }),
-      }),
-    updateDockerWidgetAccess: (id: string, enabled: boolean) =>
-      req<{ ok: boolean }>(`/user-groups/${id}/docker-widget-access`, {
-        method: 'PUT',
-        body: JSON.stringify({ enabled }),
-      }),
-  },
 
   arr: {
     instances: {
@@ -221,33 +183,27 @@ export const api = {
   },
 
   dashboard: {
-    list: (asGuest?: boolean) => req<DashboardResponse>(`/dashboard${asGuest ? '?as=guest' : ''}`),
-    createGroup: (name: string, asGuest?: boolean) =>
-      req<DashboardGroup>(`/dashboard/groups${asGuest ? '?as=guest' : ''}`,
-        { method: 'POST', body: JSON.stringify({ name }) }),
-    updateGroup: (id: string, data: { name?: string; col_span?: number }, asGuest?: boolean) =>
-      req<{ ok: boolean }>(`/dashboard/groups/${id}${asGuest ? '?as=guest' : ''}`,
-        { method: 'PATCH', body: JSON.stringify(data) }),
-    deleteGroup: (id: string, asGuest?: boolean) =>
-      req<void>(`/dashboard/groups/${id}${asGuest ? '?as=guest' : ''}`, { method: 'DELETE' }),
-    reorderGroups: (ids: string[], asGuest?: boolean) =>
-      req<{ ok: boolean }>(`/dashboard/groups/reorder${asGuest ? '?as=guest' : ''}`,
-        { method: 'PATCH', body: JSON.stringify({ ids }) }),
-    moveItemToGroup: (itemId: string, groupId: string | null, asGuest?: boolean) =>
-      req<{ ok: boolean }>(`/dashboard/items/${itemId}/group${asGuest ? '?as=guest' : ''}`,
-        { method: 'PATCH', body: JSON.stringify({ group_id: groupId }) }),
-    reorderGroupItems: (groupId: string, ids: string[], asGuest?: boolean) =>
-      req<{ ok: boolean }>(`/dashboard/groups/${groupId}/reorder-items${asGuest ? '?as=guest' : ''}`,
-        { method: 'PATCH', body: JSON.stringify({ ids }) }),
-    addItem: (type: string, ref_id?: string, asGuest?: boolean) =>
-      req<{ id: string; type: string; ref_id: string | null; position: number }>(
-        `/dashboard/items${asGuest ? '?as=guest' : ''}`, { method: 'POST', body: JSON.stringify({ type, ref_id }) }
-      ),
-    removeItem: (id: string, asGuest?: boolean) => req<void>(`/dashboard/items/${id}${asGuest ? '?as=guest' : ''}`, { method: 'DELETE' }),
-    removeByRef: (type: string, ref_id: string, asGuest?: boolean) =>
-      req<void>(`/dashboard/items/by-ref${asGuest ? '?as=guest' : ''}`, { method: 'DELETE', body: JSON.stringify({ type, ref_id }) }),
-    reorder: (ids: string[], asGuest?: boolean) =>
-      req<{ ok: boolean }>(`/dashboard/reorder${asGuest ? '?as=guest' : ''}`, { method: 'PATCH', body: JSON.stringify({ ids }) }),
+    list: () => req<DashboardResponse>('/dashboard'),
+    createGroup: (name: string) =>
+      req<DashboardGroup>('/dashboard/groups', { method: 'POST', body: JSON.stringify({ name }) }),
+    updateGroup: (id: string, data: Partial<DashboardGroup>) =>
+      req<{ ok: boolean }>(`/dashboard/groups/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    deleteGroup: (id: string) =>
+      req<void>(`/dashboard/groups/${id}`, { method: 'DELETE' }),
+    reorderGroups: (ids: string[]) =>
+      req<{ ok: boolean }>('/dashboard/groups/reorder', { method: 'PATCH', body: JSON.stringify({ ids }) }),
+    moveItemToGroup: (itemId: string, groupId: string | null) =>
+      req<{ ok: boolean }>(`/dashboard/items/${itemId}/group`, { method: 'PATCH', body: JSON.stringify({ group_id: groupId }) }),
+    reorderGroupItems: (groupId: string, ids: string[]) =>
+      req<{ ok: boolean }>(`/dashboard/groups/${groupId}/reorder-items`, { method: 'PATCH', body: JSON.stringify({ ids }) }),
+    addItem: (type: string, ref_id?: string) =>
+      req<DashboardItem>('/dashboard/items', { method: 'POST', body: JSON.stringify({ type, ref_id }) }),
+    removeItem: (id: string) =>
+      req<void>(`/dashboard/items/${id}`, { method: 'DELETE' }),
+    removeByRef: (type: string, ref_id: string) =>
+      req<void>('/dashboard/items/by-ref', { method: 'DELETE', body: JSON.stringify({ type, ref_id }) }),
+    reorder: (ids: string[]) =>
+      req<{ ok: boolean }>('/dashboard/reorder', { method: 'PATCH', body: JSON.stringify({ ids }) }),
   },
 
   docker: {
@@ -427,7 +383,6 @@ export const api = {
   },
 
   admin: {
-    guestVisibility: () => req<{ services: string[]; arr: string[]; widgets: string[] }>('/admin/guest-visibility'),
   },
 
   services_extra: {

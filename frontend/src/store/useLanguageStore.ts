@@ -1,20 +1,13 @@
 import { create } from 'zustand'
 
-type Language = 'de' | 'en'
+type Language = 'de'
 
 interface LanguageStore {
   language: Language
-  setLanguage: (lang: Language) => void
+  setLanguage: (_lang: string) => void
 }
 
-export const useLanguageStore = create<LanguageStore>((set) => {
-  const stored = localStorage.getItem('heldash_language') as Language | null
-  const initial: Language = (stored && ['de', 'en'].includes(stored)) ? stored : 'de'
-  return {
-    language: initial,
-    setLanguage: (language) => {
-      set({ language })
-      localStorage.setItem('heldash_language', language)
-    },
-  }
-})
+export const useLanguageStore = create<LanguageStore>((set) => ({
+  language: 'de',
+  setLanguage: () => set({ language: 'de' }),
+}))

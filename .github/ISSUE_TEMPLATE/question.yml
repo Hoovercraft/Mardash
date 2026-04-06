@@ -9,8 +9,8 @@ body:
         Have a question? Need help with setup or configuration?
 
         **Before asking:**
-        - Check the [Documentation](https://github.com/kreuzbube88/heldash#documentation) in the About page
-        - Search [existing issues](https://github.com/kreuzbube88/heldash/issues?q=is%3Aissue)
+        - Check the [Documentation](https://github.com/kreuzbube88/mardash#documentation) in the About page
+        - Search [existing issues](https://github.com/kreuzbube88/mardash/issues?q=is%3Aissue)
 
   - type: dropdown
     id: topic
@@ -53,6 +53,6 @@ body:
   - type: input
     id: version
     attributes:
-      label: HELDASH Version
+      label: MARDASH Version
       description: Which version are you running?
       placeholder: v1.4.0

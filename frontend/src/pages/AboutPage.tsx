@@ -19,9 +19,9 @@ export function AboutPage({ onShowChangelog }: { onShowChangelog?: () => void } 
       {/* Intro */}
       <div className="glass" style={{ borderRadius: 'var(--radius-xl)', padding: 'var(--spacing-2xl)', marginBottom: 'var(--spacing-xl)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xl)', marginBottom: 'var(--spacing-lg)' }}>
-          <img src="/logo.png" alt="HELDASH" style={{ width: 64, flexShrink: 0 }} />
+          <img src="/logo.png" alt="MARDASH" style={{ width: 64, flexShrink: 0 }} />
           <div>
-            <div style={{ fontWeight: 700, fontSize: 20, color: 'var(--text-primary)', marginBottom: 4 }}>HELDASH</div>
+            <div style={{ fontWeight: 700, fontSize: 20, color: 'var(--text-primary)', marginBottom: 4 }}>MARDASH</div>
             <span className="badge badge-neutral">
               {t('version')}: {version === null ? <span style={{ opacity: 0.5 }}>…</span> : version}
             </span>
@@ -48,7 +48,7 @@ export function AboutPage({ onShowChangelog }: { onShowChangelog?: () => void } 
         <div className="section-header">{t('links.title')}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-md)' }}>
           <a
-            href="https://github.com/Kreuzbube88/heldash/tree/main/docs"
+            href="https://github.com/Kreuzbube88/mardash/tree/main/docs"
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-primary"
@@ -58,7 +58,7 @@ export function AboutPage({ onShowChangelog }: { onShowChangelog?: () => void } 
             {t('links.docs')}
           </a>
           <a
-            href="https://github.com/Kreuzbube88/heldash"
+            href="https://github.com/Kreuzbube88/mardash"
             target="_blank"
             rel="noopener noreferrer"
             className="badge badge-accent"

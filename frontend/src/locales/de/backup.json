@@ -145,7 +145,7 @@
     "duplicati_6": "Quelle: /source/appdata (oder einzelne Ordner)",
     "duplicati_7": "Zeitplan: täglich 02:00 Uhr",
     "duplicati_8": "Speichern + ersten Backup starten",
-    "duplicati_9": "HELDASH: URL http://server-ip:8200 + API-Key eintragen",
+    "duplicati_9": "MARDASH: URL http://server-ip:8200 + API-Key eintragen",
     "duplicati_api_key_hint": "API-Key finden: Duplicati → Einstellungen → API-Schlüssel",
     "test_title": "Backup testen",
     "test_intro": "Ein Backup das nie getestet wurde ist keines:",
@@ -161,10 +161,10 @@
     "dr_2_desc": "config/ Ordner vom Backup auf neuen USB kopieren — Netzwerk, Shares, Benutzer wiederhergestellt",
     "dr_3_title": "Unraid starten + Array/Pool konfigurieren",
     "dr_3_desc": "RAID1 SSDs/NVMes werden automatisch erkannt → Pool zuweisen + starten",
-    "dr_4_title": "HELDASH zuerst starten",
+    "dr_4_title": "MARDASH zuerst starten",
     "dr_4_desc": "docker run ... (aus Docker Config Export) oder manuell neu einrichten",
     "dr_5_title": "Docker Configs importieren",
-    "dr_5_desc": "HELDASH → Backup → Docker → JSON importieren → Alle Container werden neu erstellt",
+    "dr_5_desc": "MARDASH → Backup → Docker → JSON importieren → Alle Container werden neu erstellt",
     "dr_6_title": "CA Backup restore (Appdata)",
     "dr_6_desc": "CA Backup Plugin installieren → Restore aus Backup-Ziel starten",
     "dr_7_title": "Datenbanken wiederherstellen",
@@ -172,6 +172,6 @@
     "dr_8_title": "VMs wiederherstellen",
     "dr_8_desc": "XML + IMG Dateien zurückkopieren nach /etc/libvirt/",
     "dr_9_title": "Fertig",
-    "dr_9_desc": "Alle Services prüfen → Backup-Quellen in HELDASH neu verbinden"
+    "dr_9_desc": "Alle Services prüfen → Backup-Quellen in MARDASH neu verbinden"
   }
 }

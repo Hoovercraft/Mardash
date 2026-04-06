@@ -1,4 +1,4 @@
-# Contributing to HELDASH
+# Contributing to MARDASH
 
 [🇬🇧 English](#english) | [🇩🇪 Deutsch](#deutsch)
 
@@ -9,7 +9,7 @@
 
 ### Adding a Translation
 
-HELDASH uses **react-i18next** for internationalization. Currently supported: German (default), English.
+MARDASH uses **react-i18next** for internationalization. Currently supported: German (default), English.
 
 **To add your language:**
 
@@ -83,7 +83,7 @@ cd frontend && npm install && npm run dev
 
 ### Übersetzung hinzufügen
 
-HELDASH nutzt **react-i18next** für Internationalisierung. Aktuell verfügbar: Deutsch (Standard), Englisch.
+MARDASH nutzt **react-i18next** für Internationalisierung. Aktuell verfügbar: Deutsch (Standard), Englisch.
 
 **So fügst du deine Sprache hinzu:**
 

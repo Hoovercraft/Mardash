@@ -57,7 +57,7 @@ export async function bookmarksRoutes(app: FastifyInstance) {
     ).all() as Pick<BookmarkRow, 'name' | 'url' | 'description' | 'icon_url' | 'icon_id'>[]
     const date = new Date().toISOString().split('T')[0]
     reply.header('Content-Type', 'application/json')
-    reply.header('Content-Disposition', `attachment; filename="heldash-bookmarks-${date}.json"`)
+    reply.header('Content-Disposition', `attachment; filename="mardash-bookmarks-${date}.json"`)
     return { bookmarks: rows.map(r => ({ ...r, icon_url: r.icon_id ? `/api/icons/${r.icon_id}` : r.icon_url })) }
   })
 

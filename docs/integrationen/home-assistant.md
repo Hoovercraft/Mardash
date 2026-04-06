@@ -12,7 +12,7 @@
 
 1. Home Assistant öffnen
 2. **Profil → Sicherheit → Long-Lived Access Tokens → Token erstellen**
-3. Token kopieren und in HELDASH eintragen
+3. Token kopieren und in MARDASH eintragen
 
 ## Panels hinzufügen
 
@@ -118,7 +118,7 @@ Zeigt alle Personen (`person.*`-Entities) aus Home Assistant als Marker auf eine
 
 Listet alle in Home Assistant konfigurierten Automationen.
 
-- Automationen können direkt aus HELDASH heraus ausgeführt werden
+- Automationen können direkt aus MARDASH heraus ausgeführt werden
 - Aktivieren und Deaktivieren einzelner Automationen per Toggle möglich
 - Suchfeld zum schnellen Filtern nach Name
 
@@ -128,9 +128,9 @@ Gesicherte Bedienung für Schlösser (`lock.*`) und Alarmanlagen (`alarm_control
 
 - Lock-Karten: Öffnen/Schließen erfordert PIN-Eingabe im Popover
 - Alarm-Karten: Scharf stellen / Deaktivieren mit PIN-Bestätigung
-- PIN wird direkt an HA übergeben — nicht in HELDASH gespeichert
+- PIN wird direkt an HA übergeben — nicht in MARDASH gespeichert
 
-> PIN-Schutz ist UI-seitig — HELDASH nur im lokalen Netzwerk betreiben
+> PIN-Schutz ist UI-seitig — MARDASH nur im lokalen Netzwerk betreiben
 
 ## HA Alerts
 
@@ -148,7 +148,7 @@ Entity-basierte Benachrichtigungen als Toast-Overlay.
 
 ## Szenarien
 
-HA Szenen und Scripts direkt aus HELDASH ausführen.
+HA Szenen und Scripts direkt aus MARDASH ausführen.
 
 | Typ | Beschreibung |
 |---|---|
