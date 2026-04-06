@@ -364,14 +364,18 @@ export const api = {
     triggerJob: (jobId: string) => req<{ triggered: boolean; jobId: string; runId: string; message: string }>(`/helbackup/jobs/${jobId}/trigger`, { method: 'POST', body: JSON.stringify({}) })}}
 
 export function getIconUrl(entity: {
+  icon?: string | null
   icon_id?: string | null
   icon_url?: string | null
 }): string | null {
+  if (entity.icon_url) {
+    return entity.icon_url
+  }
   if (entity.icon_id) {
     return `/api/icons/${entity.icon_id}`
   }
-  if (entity.icon_url) {
-    return entity.icon_url
+  if (entity.icon && /^https?:\/\//i.test(entity.icon)) {
+    return entity.icon
   }
   return null
 }

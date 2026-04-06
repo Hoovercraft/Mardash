@@ -130,10 +130,6 @@ export function ServiceCard({ service, onEdit, hideAdminActions }: Props) {
 
       <div>
         <div className="service-name">{service.name}</div>
-        {service.description && (
-          <div className="service-description">{service.description}</div>
-        )}
-        <div className="service-url">{service.url.replace(/^https?:\/\//, '')}</div>
       </div>
     </a>
   )

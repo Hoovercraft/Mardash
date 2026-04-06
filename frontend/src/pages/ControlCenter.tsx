@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store/useStore'
-import { useBookmarkStore } from '../store/useBookmarkStore'
 import { useDashboardStore } from '../store/useDashboardStore'
 import { useInstanceStore } from '../store/useInstanceStore'
 import { useWidgetStore } from '../store/useWidgetStore'
 import { useConfirm } from '../components/ConfirmDialog'
 import type { InstanceType, Group, Service, Instance, BackupSource, BackupStatusResult } from '../types'
-import type { WidgetType, Bookmark } from '../types'
-import { Plus, AppWindow, Bookmark as BookmarkIcon, Boxes, PlugZap, LayoutGrid, Pencil, Trash2, ExternalLink, Download, Upload, CheckCircle2, XCircle, HardDrive, RefreshCw } from 'lucide-react'
+import type { WidgetType } from '../types'
+import { Plus, AppWindow, Boxes, PlugZap, LayoutGrid, Pencil, Trash2, ExternalLink, Download, Upload, CheckCircle2, XCircle, HardDrive, RefreshCw } from 'lucide-react'
 import { api, getIconUrl } from '../api'
 
 type TabId = 'apps' | 'integrationen' | 'widgets' | 'dashboard' | 'design' | 'appdata_backup' | 'topbar'
 
 const TAB_LIST: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
-  { id: 'apps', label: 'Apps', icon: <AppWindow size={14} /> },
+  { id: 'apps', label: 'Einträge', icon: <AppWindow size={14} /> },
   { id: 'dashboard', label: 'Dashboard', icon: <Boxes size={14} /> },
   { id: 'integrationen', label: 'Integrationen', icon: <PlugZap size={14} /> },
   { id: 'widgets', label: 'Widgets', icon: <LayoutGrid size={14} /> },
@@ -79,6 +78,34 @@ function SectionCard({ title, subtitle, children }: { title: string; subtitle?: 
   )
 }
 
+const DASHBOARDICONS_CDN = 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png'
+
+function extractDashboardIconName(value: string) {
+  const raw = value.trim()
+  if (!raw) return ''
+  const m = raw.match(/dashboard-icons\/png\/([^/?#]+?)(?:\.png)?(?:[?#].*)?$/i)
+  if (m) return m[1]
+  return raw.replace(/\.png$/i, '').trim()
+}
+
+function buildDashboardIconUrl(name: string) {
+  const normalized = extractDashboardIconName(name)
+  return normalized ? `${DASHBOARDICONS_CDN}/${normalized}.png` : ''
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : ''
+      const base64 = result.includes(',') ? result.split(',', 2)[1] : result
+      resolve(base64)
+    }
+    reader.onerror = () => reject(reader.error ?? new Error('Datei konnte nicht gelesen werden'))
+    reader.readAsDataURL(file)
+  })
+}
+
 function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
   return (
     <div style={{ display: 'flex', gap: 8 }}>
@@ -101,7 +128,7 @@ export function ControlCenterPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <TabBar active={tab} onChange={setTab} />
-      {tab === 'apps' && <AppsTab />}
+      {tab === 'apps' && <EntriesTab />}
       {tab === 'integrationen' && <IntegrationenTab />}
       {tab === 'widgets' && <WidgetsTab />}
       {tab === 'dashboard' && <DashboardTab />}
@@ -112,16 +139,18 @@ export function ControlCenterPage() {
   )
 }
 
-function AppsTab() {
+function EntriesTab() {
   const { groups, services, loadAll, createService, updateService, deleteService } = useStore()
-  const { bookmarks, loadBookmarks, createBookmark, updateBookmark, deleteBookmark, toggleDashboard } = useBookmarkStore()
   const { createGroup, loadDashboard } = useDashboardStore()
   const { confirm } = useConfirm()
 
   const [serviceName, setServiceName] = useState('')
   const [serviceUrl, setServiceUrl] = useState('')
   const [serviceGroup, setServiceGroup] = useState('')
-  const [serviceIcon, setServiceIcon] = useState('🚀')
+  const [serviceIcon, setServiceIcon] = useState('')
+  const [serviceIconMode, setServiceIconMode] = useState<'dashboardicons' | 'url' | 'upload'>('dashboardicons')
+  const [serviceIconUploadBusy, setServiceIconUploadBusy] = useState(false)
+  const serviceIconUploadRef = useRef<HTMLInputElement | null>(null)
   const [serviceBusy, setServiceBusy] = useState(false)
   const [serviceCheckEnabled, setServiceCheckEnabled] = useState(true)
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
@@ -129,15 +158,6 @@ function AppsTab() {
   const [serviceExporting, setServiceExporting] = useState(false)
   const [serviceImporting, setServiceImporting] = useState(false)
   const serviceImportRef = useRef<HTMLInputElement | null>(null)
-
-  const [bookmarkName, setBookmarkName] = useState('')
-  const [bookmarkUrl, setBookmarkUrl] = useState('')
-  const [bookmarkDescription, setBookmarkDescription] = useState('')
-  const [bookmarkBusy, setBookmarkBusy] = useState(false)
-  const [editingBookmarkId, setEditingBookmarkId] = useState<string | null>(null)
-  const [bookmarkExporting, setBookmarkExporting] = useState(false)
-  const [bookmarkImporting, setBookmarkImporting] = useState(false)
-  const bookmarkImportRef = useRef<HTMLInputElement | null>(null)
 
   const refreshDashboardServices = async () => {
     const data = await api.dashboard.list()
@@ -158,7 +178,6 @@ function AppsTab() {
 
   useEffect(() => {
     loadAll().catch(() => {})
-    loadBookmarks().catch(() => {})
     refreshDashboardServices().catch(() => {})
   }, [])
 
@@ -172,20 +191,44 @@ function AppsTab() {
     [services]
   )
 
-  const sortedBookmarks = useMemo(
-    () => [...bookmarks].sort((a, b) => a.name.localeCompare(b.name)),
-    [bookmarks]
-  )
+  const getGroupLabel = (groupId: string | null | undefined) => {
+    if (!groupId) return 'Ohne Gruppe'
+    return groups.find(g => g.id === groupId)?.name ?? 'Ohne Gruppe'
+  }
+
+  const getServiceIconKind = (service: Partial<Service>) => {
+    if (service.icon_id) return 'dashboardicons lokal'
+    if (service.icon_url) return 'Upload lokal'
+    if (typeof service.icon === 'string' && service.icon.startsWith('http')) return 'externe URL'
+    return 'kein Icon'
+  }
 
   const submitService = async () => {
     setServiceBusy(true)
     try {
+      const rawIcon = serviceIcon.trim()
       const payload: Partial<Service> = {
         name: serviceName.trim(),
         url: serviceUrl.trim(),
-        icon: serviceIcon.trim() || '🚀',
+        icon: null,
+        icon_id: null,
         group_id: serviceGroup || null,
         check_enabled: serviceCheckEnabled,
+      }
+
+      if (serviceIconMode === 'dashboardicons' && rawIcon) {
+        const normalizedDashboardIconUrl = buildDashboardIconUrl(rawIcon)
+        try {
+          const downloaded = await api.icons.download(extractDashboardIconName(rawIcon), 'png')
+          payload.icon_id = downloaded.id
+          payload.icon = normalizedDashboardIconUrl || null
+        } catch {
+          payload.icon = normalizedDashboardIconUrl || null
+          payload.icon_id = null
+        }
+      } else if (serviceIconMode === 'url' && rawIcon) {
+        payload.icon = rawIcon
+        payload.icon_id = null
       }
 
       if (editingServiceId) {
@@ -197,7 +240,8 @@ function AppsTab() {
       setServiceName('')
       setServiceUrl('')
       setServiceGroup('')
-      setServiceIcon('🚀')
+      setServiceIcon('')
+      setServiceIconMode('dashboardicons')
       setServiceCheckEnabled(true)
       setEditingServiceId(null)
       await loadAll()
@@ -207,42 +251,172 @@ function AppsTab() {
     }
   }
 
-  const submitBookmark = async () => {
-    setBookmarkBusy(true)
-    try {
-      if (editingBookmarkId) {
-        await updateBookmark(editingBookmarkId, {
-          name: bookmarkName.trim(),
-          url: bookmarkUrl.trim(),
-          description: bookmarkDescription.trim() || undefined,
-        })
-      } else {
-        await createBookmark(bookmarkName.trim(), bookmarkUrl.trim(), bookmarkDescription.trim() || undefined)
-      }
-
-      setBookmarkName('')
-      setBookmarkUrl('')
-      setBookmarkDescription('')
-      setEditingBookmarkId(null)
-      await loadBookmarks()
-    } finally {
-      setBookmarkBusy(false)
-    }
-  }
-
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 16, alignItems: 'start' }}>
-      <SectionCard title="App anlegen / bearbeiten" subtitle="Services zentral verwalten.">
+      <SectionCard title="Eintrag anlegen / bearbeiten" subtitle="Alle Kacheln zentral verwalten.">
         <input className="form-input" placeholder="Name" value={serviceName} onChange={e => setServiceName(e.target.value)} />
         <input className="form-input" placeholder="URL" value={serviceUrl} onChange={e => setServiceUrl(e.target.value)} />
-        <input className="form-input" placeholder="Icon oder Emoji" value={serviceIcon} onChange={e => setServiceIcon(e.target.value)} />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => setServiceIconMode('dashboardicons')}
+            style={{
+              gap: 6,
+              background: serviceIconMode === 'dashboardicons' ? 'rgba(var(--accent-rgb), 0.12)' : undefined,
+              border: serviceIconMode === 'dashboardicons' ? '1px solid rgba(var(--accent-rgb), 0.25)' : undefined,
+              color: serviceIconMode === 'dashboardicons' ? 'var(--accent)' : undefined,
+            }}
+          >
+            dashboardicons
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => setServiceIconMode('url')}
+            style={{
+              gap: 6,
+              background: serviceIconMode === 'url' ? 'rgba(var(--accent-rgb), 0.12)' : undefined,
+              border: serviceIconMode === 'url' ? '1px solid rgba(var(--accent-rgb), 0.25)' : undefined,
+              color: serviceIconMode === 'url' ? 'var(--accent)' : undefined,
+            }}
+          >
+            Bild-URL
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => setServiceIconMode('upload')}
+            style={{
+              gap: 6,
+              background: serviceIconMode === 'upload' ? 'rgba(var(--accent-rgb), 0.12)' : undefined,
+              border: serviceIconMode === 'upload' ? '1px solid rgba(var(--accent-rgb), 0.25)' : undefined,
+              color: serviceIconMode === 'upload' ? 'var(--accent)' : undefined,
+            }}
+          >
+            Upload
+          </button>
+        </div>
+
+        {serviceIconMode === 'dashboardicons' && (
+          <input
+            className="form-input"
+            placeholder="z. B. baikal, home-assistant, unraid"
+            value={serviceIcon}
+            onChange={e => setServiceIcon(extractDashboardIconName(e.target.value))}
+          />
+        )}
+
+        {serviceIconMode === 'url' && (
+          <input
+            className="form-input"
+            placeholder="https://…/icon.png"
+            value={serviceIcon}
+            onChange={e => setServiceIcon(e.target.value)}
+          />
+        )}
+
+        {serviceIconMode === 'upload' && (
+          <>
+            <input
+              ref={serviceIconUploadRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={async e => {
+                const file = e.target.files?.[0]
+                if (!file || !editingServiceId) return
+                setServiceIconUploadBusy(true)
+                try {
+                  await (await import('../api')).api.services.uploadIcon(editingServiceId, await fileToBase64(file), file.type)
+                  await loadAll()
+                  const updated = (await import('../api')).api
+                  const current = (await updated).services.list
+                  const freshServices = await current()
+                  const fresh = freshServices.find(x => x.id === editingServiceId)
+                  setServiceIcon(fresh?.icon_url || '')
+                } finally {
+                  setServiceIconUploadBusy(false)
+                  if (serviceIconUploadRef.current) serviceIconUploadRef.current.value = ''
+                }
+              }}
+            />
+            <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 12, color: 'var(--text-muted)' }}>
+              Upload setzt ein lokales Bild für bestehende Einträge. Für neue Einträge erst speichern, dann hochladen.
+            </div>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              disabled={!editingServiceId || serviceIconUploadBusy}
+              onClick={() => serviceIconUploadRef.current?.click()}
+              style={{ gap: 8 }}
+            >
+              <Upload size={14} /> {serviceIconUploadBusy ? 'Lädt…' : 'Bild von Platte wählen'}
+            </button>
+          </>
+        )}
+
+        <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, background: 'var(--bg-elevated)', overflow: 'hidden', flexShrink: 0 }}>
+            {serviceIconMode === 'dashboardicons' && serviceIcon.trim() ? (
+              <img
+                src={buildDashboardIconUrl(serviceIcon)}
+                alt=""
+                style={{ width: 24, height: 24, objectFit: 'contain' }}
+              />
+            ) : serviceIconMode === 'url' && serviceIcon.trim() ? (
+              <img
+                src={serviceIcon.trim()}
+                alt=""
+                style={{ width: 24, height: 24, objectFit: 'contain' }}
+              />
+            ) : serviceIconMode === 'upload' && serviceIcon.trim() ? (
+              <img
+                src={serviceIcon.trim()}
+                alt=""
+                style={{ width: 24, height: 24, objectFit: 'contain' }}
+              />
+            ) : (
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>—</span>
+            )}
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 12, fontWeight: 600 }}>Icon-Vorschau</div>
+              <span
+                style={{
+                  fontSize: 11,
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  background: 'rgba(var(--accent-rgb), 0.10)',
+                  border: '1px solid rgba(var(--accent-rgb), 0.20)',
+                  color: 'var(--accent)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {serviceIconMode === 'dashboardicons'
+                  ? 'dashboardicons'
+                  : serviceIconMode === 'url'
+                    ? 'externe URL'
+                    : 'Upload lokal'}
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 4 }}>
+              {serviceIconMode === 'dashboardicons'
+                ? (serviceIcon.trim() ? extractDashboardIconName(serviceIcon) : 'Noch kein Name')
+                : serviceIconMode === 'url'
+                  ? (serviceIcon.trim() ? 'Externe Bild-URL gesetzt' : 'Noch keine Bild-URL')
+                  : (editingServiceId ? (serviceIcon.trim() ? 'Lokales Upload-Icon gesetzt' : 'Noch kein Upload gesetzt') : 'Upload nach erstem Speichern möglich')}
+            </div>
+          </div>
+        </div>
         <select className="form-input" value={serviceGroup} onChange={e => setServiceGroup(e.target.value)}>
-          <option value="">Keine Gruppe</option>
+          <option value="">Ohne Gruppe</option>
           {sortedGroups.map((g: Group) => <option key={g.id} value={g.id}>{g.name}</option>)}
         </select>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
           <input type="checkbox" checked={serviceCheckEnabled} onChange={e => setServiceCheckEnabled(e.target.checked)} />
-          Status online prüfen
+          Statuscheck aktivieren
         </label>
         <input
           ref={serviceImportRef}
@@ -273,7 +447,7 @@ function AppsTab() {
             onClick={submitService}
             style={{ gap: 8 }}
           >
-            <Plus size={14} /> {editingServiceId ? 'App speichern' : 'App hinzufügen'}
+            <Plus size={14} /> {editingServiceId ? 'Eintrag speichern' : 'Eintrag hinzufügen'}
           </button>
           {editingServiceId && (
             <button
@@ -283,7 +457,8 @@ function AppsTab() {
                 setServiceName('')
                 setServiceUrl('')
                 setServiceGroup('')
-                setServiceIcon('🚀')
+                setServiceIcon('')
+                setServiceIconMode('dashboardicons')
                 setServiceCheckEnabled(true)
               }}
             >
@@ -324,15 +499,24 @@ function AppsTab() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, maxHeight: 420, overflow: 'auto' }}>
-          {sortedServices.slice(0, 8).map(s => {
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            Jeder Eintrag nutzt dieselbe Logik: Name, URL, Gruppe, Statuscheck und Icon.
+          </div>
+          {sortedServices.length === 0 ? (
+            <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)' }}>
+              Noch keine Einträge vorhanden.
+            </div>
+          ) : sortedServices.map(s => {
             const onDashboard = dashboardServiceIds.includes(s.id)
             return (
             <div key={s.id} className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 600 }}>{s.name}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.url}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                  {s.check_enabled ? 'Statusprüfung aktiv' : 'Keine Statusprüfung'}
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <span>Gruppe: {getGroupLabel(s.group_id)}</span>
+                  <span>{s.check_enabled ? 'Statuscheck: an' : 'Statuscheck: aus'}</span>
+                  <span>Icon-Typ: {getServiceIconKind(s)}</span>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -348,7 +532,7 @@ function AppsTab() {
                     await loadDashboard()
                   }}
                 >
-                  {onDashboard ? 'Vom Dashboard' : 'Auf Dashboard'}
+                  {onDashboard ? 'Vom Dashboard entfernen' : 'Auf Dashboard anzeigen'}
                 </button>
                 <RowActions
                   onEdit={() => {
@@ -356,7 +540,23 @@ function AppsTab() {
                     setServiceName(s.name)
                     setServiceUrl(s.url)
                     setServiceGroup(s.group_id ?? '')
-                    setServiceIcon((s.icon as string) || '🚀')
+                    const iconValue = typeof s.icon === 'string' ? s.icon : ''
+                    if (s.icon_id && iconValue.includes('dashboard-icons/')) {
+                      setServiceIcon(extractDashboardIconName(iconValue))
+                      setServiceIconMode('dashboardicons')
+                    } else if (s.icon_id && !iconValue) {
+                      setServiceIcon('')
+                      setServiceIconMode('dashboardicons')
+                    } else if (iconValue.includes('dashboard-icons/')) {
+                      setServiceIcon(extractDashboardIconName(iconValue))
+                      setServiceIconMode('dashboardicons')
+                    } else if (iconValue.startsWith('http')) {
+                      setServiceIcon(iconValue)
+                      setServiceIconMode('url')
+                    } else {
+                      setServiceIcon('')
+                      setServiceIconMode('dashboardicons')
+                    }
                     setServiceCheckEnabled(Boolean(s.check_enabled))
                   }}
                   onDelete={async () => {
@@ -370,124 +570,6 @@ function AppsTab() {
               </div>
             </div>
           )})}
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Bookmark anlegen / bearbeiten" subtitle="Schnellzugriffe zentral verwalten.">
-        <input className="form-input" placeholder="Name" value={bookmarkName} onChange={e => setBookmarkName(e.target.value)} />
-        <input className="form-input" placeholder="URL" value={bookmarkUrl} onChange={e => setBookmarkUrl(e.target.value)} />
-        <input className="form-input" placeholder="Beschreibung" value={bookmarkDescription} onChange={e => setBookmarkDescription(e.target.value)} />
-        <input
-          ref={bookmarkImportRef}
-          type="file"
-          accept=".json"
-          style={{ display: 'none' }}
-          onChange={async e => {
-            const file = e.target.files?.[0]
-            if (!file) return
-            setBookmarkImporting(true)
-            try {
-              const text = await file.text()
-              const data = JSON.parse(text) as { bookmarks?: Array<{ name: string; url: string; description?: string }> }
-              if (Array.isArray(data.bookmarks)) {
-                await (await import('../store/useBookmarkStore')).useBookmarkStore.getState().importBookmarks(file)
-                await loadBookmarks()
-              }
-            } finally {
-              setBookmarkImporting(false)
-              if (bookmarkImportRef.current) bookmarkImportRef.current.value = ''
-            }
-          }}
-        />
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button
-            className="btn btn-primary"
-            disabled={bookmarkBusy || !bookmarkName.trim() || !bookmarkUrl.trim()}
-            onClick={submitBookmark}
-            style={{ gap: 8 }}
-          >
-            <BookmarkIcon size={14} /> {editingBookmarkId ? 'Bookmark speichern' : 'Bookmark hinzufügen'}
-          </button>
-          {editingBookmarkId && (
-            <button
-              className="btn btn-ghost"
-              onClick={() => {
-                setEditingBookmarkId(null)
-                setBookmarkName('')
-                setBookmarkUrl('')
-                setBookmarkDescription('')
-              }}
-            >
-              Abbrechen
-            </button>
-          )}
-          <button
-            className="btn btn-ghost"
-            disabled={bookmarkExporting}
-            onClick={async () => {
-              setBookmarkExporting(true)
-              try {
-                await (await import('../store/useBookmarkStore')).useBookmarkStore.getState().exportBookmarks()
-              } finally {
-                setBookmarkExporting(false)
-              }
-            }}
-            style={{ gap: 8 }}
-          >
-            <Download size={14} /> Export
-          </button>
-          <button
-            className="btn btn-ghost"
-            disabled={bookmarkImporting}
-            onClick={() => bookmarkImportRef.current?.click()}
-            style={{ gap: 8 }}
-          >
-            <Upload size={14} /> Import
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, maxHeight: 420, overflow: 'auto' }}>
-          {sortedBookmarks.slice(0, 8).map((b: Bookmark) => (
-            <div key={b.id} className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-                  {getIconUrl(b)
-                    ? <img src={getIconUrl(b)!} alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />
-                    : <ExternalLink size={14} />
-                  }
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 600 }}>{b.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.url}</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={async () => {
-                    await toggleDashboard(b.id, b.show_on_dashboard === 0)
-                    await loadBookmarks()
-                  }}
-                >
-                  {b.show_on_dashboard === 0 ? 'Auf Dashboard' : 'Vom Dashboard'}
-                </button>
-                <RowActions
-                  onEdit={() => {
-                    setEditingBookmarkId(b.id)
-                    setBookmarkName(b.name)
-                    setBookmarkUrl(b.url)
-                    setBookmarkDescription(b.description ?? '')
-                  }}
-                  onDelete={async () => {
-                    const ok = await confirm({ title: `"${b.name}" löschen?`, danger: true, confirmLabel: 'Löschen' })
-                    if (!ok) return
-                    await deleteBookmark(b.id)
-                    await loadBookmarks()
-                  }}
-                />
-              </div>
-            </div>
-          ))}
         </div>
       </SectionCard>
 
