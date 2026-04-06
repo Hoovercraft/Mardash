@@ -35,7 +35,7 @@ export interface Settings {
   theme_accent: ThemeAccent
   dashboard_title: string
   auth_enabled: boolean
-  auth_mode: 'none' | 'local' | 'oidc'
+  auth_mode: 'local'
   auto_theme_enabled?: boolean
   auto_theme_light_start?: string  // HH:MM e.g. "08:00"
   auto_theme_dark_start?: string   // HH:MM e.g. "20:00"

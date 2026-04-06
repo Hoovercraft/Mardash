@@ -99,7 +99,7 @@ interface CallerInfo {
 /**
  * Determines who is making the request and what they can do:
  * - Admin (own dashboard):     ownerId=sub,     filterGroupId=null,       canWrite=true
- * - Admin (?as=guest):         ownerId='guest',  filterGroupId='grp_guest', canWrite=true
+
  * - Regular user (own dash):   ownerId=sub,     filterGroupId=groupId,    canWrite=true
  * - grp_guest user:            ownerId='guest',  filterGroupId='grp_guest', canWrite=false
  * - Unauthenticated:           ownerId='guest',  filterGroupId='grp_guest', canWrite=false

@@ -31,7 +31,7 @@ MARDASH uses **react-i18next** for internationalization. Currently supported: Ge
 3. **Update code:**
    - Add imports to `frontend/src/i18n.ts`
    - Update type in `frontend/src/stores/useLanguageStore.ts`
-   - Add option to `SetupPage.tsx` language selector
+   - Adjust language texts in the remaining settings/localization files
    - Add option to `Settings.tsx` language dropdown
 
 4. **Test locally:**
@@ -105,7 +105,7 @@ MARDASH nutzt **react-i18next** für Internationalisierung. Aktuell verfügbar: 
 3. **Code aktualisieren:**
    - Imports in `frontend/src/i18n.ts` hinzufügen
    - Typ in `frontend/src/stores/useLanguageStore.ts` erweitern
-   - Option in `SetupPage.tsx` Sprachauswahl hinzufügen
+   - Sprachtexte in den verbleibenden Settings-/Lokalisierungsdateien anpassen
    - Option in `Settings.tsx` Dropdown hinzufügen
 
 4. **Lokal testen:**

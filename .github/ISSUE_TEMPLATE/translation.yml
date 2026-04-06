@@ -64,7 +64,7 @@ body:
           required: true
         - label: I've updated `frontend/src/stores/useLanguageStore.ts` type
           required: true
-        - label: I've added my language to SetupPage.tsx and Settings.tsx
+        - label: I've added my language to Settings.tsx
           required: true
         - label: I've tested the translation locally (`npm run dev`)
           required: true
