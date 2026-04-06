@@ -1,11 +1,10 @@
 import React, { useEffect, useLayoutEffect, useState } from 'react'
 import {
-  LayoutDashboard, Settings, AppWindow, Info, Tv2, BarChart2, Container, Home,
-  ChevronLeft, ChevronRight, ScrollText, Network, HardDrive, Server, Bookmark, Link2,
+  LayoutDashboard, Settings, AppWindow, Info, BarChart2, Container, Home,
+  ChevronLeft, ChevronRight, ScrollText, Network, HardDrive, Server, Bookmark, Link2, SlidersHorizontal,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useStore } from '../store/useStore'
-import { useArrStore } from '../store/useArrStore'
 import { useWidgetStore } from '../store/useWidgetStore'
 import { useDockerStore } from '../store/useDockerStore'
 import type { Widget, ServerStats, AdGuardStats, HaEntityState, NpmStats, CalendarEntry, WeatherStats } from '../types'
@@ -20,7 +19,6 @@ interface Props {
 export function Sidebar({ page, onNavigate }: Props) {
   const { t } = useTranslation('common')
   const { settings, services } = useStore()
-  const { instances } = useArrStore()
   const { widgets, loadStats, startPolling, stopPolling } = useWidgetStore()
   const { loadContainers } = useDockerStore()
 
@@ -89,9 +87,9 @@ export function Sidebar({ page, onNavigate }: Props) {
         )}
 
         <NavItem icon={<LayoutDashboard size={16} />} label={t('nav.dashboard')} active={page === 'dashboard'} onClick={() => onNavigate('dashboard')} collapsed={collapsed} />
+        <NavItem icon={<SlidersHorizontal size={16} />} label="Control Center" active={page === 'control_center'} onClick={() => onNavigate('control_center')} collapsed={collapsed} />
         <NavItem icon={<AppWindow size={16} />} label={t('nav.apps')} active={page === 'services'} onClick={() => onNavigate('services')} collapsed={collapsed} />
         <NavItem icon={<Bookmark size={16} />} label={t('nav.bookmarks')} active={page === 'bookmarks'} onClick={() => onNavigate('bookmarks')} collapsed={collapsed} />
-        {(instances.length > 0 || true) && <NavItem icon={<Tv2 size={16} />} label={t('nav.media')} active={page === 'media'} onClick={() => onNavigate('media')} collapsed={collapsed} />}
         {(widgets.length > 0 || true) && <NavItem icon={<BarChart2 size={16} />} label={t('nav.widgets')} active={page === 'widgets'} onClick={() => onNavigate('widgets')} collapsed={collapsed} />}
         <NavItem icon={<Container size={16} />} label={t('nav.docker')} active={page === 'docker'} onClick={() => onNavigate('docker')} collapsed={collapsed} />
         <NavItem icon={<Home size={16} />} label={t('nav.home_assistant')} active={page === 'home_assistant'} onClick={() => onNavigate('home_assistant')} collapsed={collapsed} />
@@ -162,8 +160,8 @@ function BottomNavBar({ page, onNavigate }: { page: string; onNavigate: (p: stri
 
   const items: { icon: React.ReactNode; label: string; target: string }[] = [
     { icon: <LayoutDashboard size={20} />, label: t('nav.dashboard'), target: 'dashboard' },
+    { icon: <SlidersHorizontal size={20} />, label: 'Control', target: 'control_center' },
     { icon: <AppWindow size={20} />, label: t('nav.apps'), target: 'services' },
-    { icon: <Tv2 size={20} />, label: t('nav.media'), target: 'media' },
     { icon: <Container size={20} />, label: t('nav.docker'), target: 'docker' },
     { icon: <Home size={20} />, label: t('nav.home_assistant'), target: 'home_assistant' },
     { icon: <Settings size={20} />, label: t('nav.settings'), target: 'settings' },

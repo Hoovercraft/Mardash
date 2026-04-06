@@ -14,7 +14,6 @@ interface DashboardState {
   setShowVisibilityOverlay: (v: boolean) => void
 
   addServiceItem: (refId: string) => Promise<void>
-  addArrItem: (refId: string) => Promise<void>
   addWidgetItem: (refId: string) => Promise<void>
   addPlaceholder: (type: 'small' | 'medium' | 'large') => Promise<void>
 
@@ -52,11 +51,6 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
   addServiceItem: async (refId) => {
     await api.dashboard.addItem('service', refId)
-    await get().loadDashboard()
-  },
-
-  addArrItem: async (refId) => {
-    await api.dashboard.addItem('arr_instance', refId)
     await get().loadDashboard()
   },
 

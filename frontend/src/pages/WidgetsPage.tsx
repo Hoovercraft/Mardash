@@ -7,13 +7,11 @@ import { useDockerStore } from '../store/useDockerStore'
 import { useDashboardStore } from '../store/useDashboardStore'
 import { useStore } from '../store/useStore'
 import { useHaStore } from '../store/useHaStore'
-import { useArrStore } from '../store/useArrStore'
 import { useInstanceStore } from '../store/useInstanceStore'
 import { Trash2, Pencil, X, Check, Plus, Minus, LayoutDashboard, Shield, ShieldOff, Container, Play, Square, RotateCcw, Zap, Sun, ZapOff, Flame, BatteryCharging, Calendar, Film, Tv, Cloud, LayoutGrid } from 'lucide-react'
 import type { Widget, ServerStatusConfig, AdGuardHomeConfig, CustomButtonConfig, HomeAssistantConfig, NginxPMConfig, HomeAssistantEnergyConfig, ServerStats, AdGuardStats, HaEntityState, NpmStats, EnergyData, CalendarWidgetConfig, CalendarEntry, WeatherWidgetConfig, WeatherStats } from '../types'
 import { normalizeUrl, containerCounts } from '../utils'
 import { getIconUrl } from '../api'
-import { ArrCardContent, SabnzbdCardContent, SeerrCardContent, TYPE_COLORS as ARR_TYPE_COLORS } from '../components/MediaCard'
 import { HelbackupWidget } from '../components/HelbackupWidget'
 
 // ── Energy Widget compact view ─────────────────────────────────────────────────
@@ -520,7 +518,6 @@ function WidgetForm({
     (initial?.type as WidgetFormType) ?? 'server_status'
   )
   const { instances: haInstances, loadInstances: loadHaInstances } = useHaStore()
-  const { instances: arrInstances, loadInstances: loadArrInstances } = useArrStore()
   const [name, setName] = useState(initial?.name ?? '')
   const [displayLocation, setDisplayLocation] = useState<'topbar' | 'sidebar' | 'none'>(
     (initial?.display_location ?? 'none') as 'topbar' | 'sidebar' | 'none'
@@ -1432,17 +1429,14 @@ export function WidgetsPage({ showAddForm, onFormClose }: Props) {
   const { t } = useTranslation('widgets')
   const { isAdmin } = useStore()
   const { widgets, loadWidgets, loadStats, createWidget, updateWidget, deleteWidget, startPollingAll, stopPollingAll } = useWidgetStore()
-  const { isOnDashboard, addWidget, addArrInstance, removeByRef } = useDashboardStore()
+  const { isOnDashboard, addWidget, removeByRef } = useDashboardStore()
   const { loadContainers: loadDockerContainers } = useDockerStore()
   const { confirm: confirmDlg } = useConfirm()
-  const { instances } = useInstanceStore()
-  const { loadAllStats: loadArrStats } = useArrStore()
   const [editingId, setEditingId] = useState<string | null>(null)
 
   useEffect(() => {
     loadWidgets().catch(() => {})
     useInstanceStore.getState().loadInstances().catch(() => {})
-    loadArrStats().catch(() => {})
   }, [])
 
   const widgetIds = widgets.map(w => w.id).join(',')
@@ -1476,14 +1470,6 @@ export function WidgetsPage({ showAddForm, onFormClose }: Props) {
     const ok = await confirmDlg({ title: t('delete_confirm_title', { name }), danger: true, confirmLabel: t('delete_confirm_btn') })
     if (!ok) return
     await deleteWidget(id)
-  }
-
-  const handleToggleArrDashboard = async (instanceId: string) => {
-    if (isOnDashboard('arr_instance', instanceId)) {
-      await removeByRef('arr_instance', instanceId)
-    } else {
-      await addArrInstance(instanceId)
-    }
   }
 
   const handleToggleDashboard = async (widget: Widget) => {
@@ -1537,85 +1523,6 @@ export function WidgetsPage({ showAddForm, onFormClose }: Props) {
         ))}
       </div>
 
-      {/* Instances section — Arr types only */}
-      {instances.filter(i => i.enabled && ['radarr', 'sonarr', 'prowlarr', 'sabnzbd', 'seerr'].includes(i.type)).length > 0 && (
-        <div>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            marginBottom: 12, paddingBottom: 8,
-            borderBottom: '1px solid var(--glass-border)',
-          }}>
-            <LayoutGrid size={14} />
-            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{t('arr_section_title')}</h3>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              ({instances.filter(i => i.enabled && ['radarr', 'sonarr', 'prowlarr', 'sabnzbd', 'seerr'].includes(i.type)).length})
-            </span>
-          </div>
-          <div className="card-grid" style={{ gap: 14 }}>
-            {instances.filter(i => i.enabled && ['radarr', 'sonarr', 'prowlarr', 'sabnzbd', 'seerr'].includes(i.type)).map(instance => {
-              const onDashboard = isOnDashboard('arr_instance', instance.id)
-              const dashBtn = isAdmin && (
-                <button
-                  className={onDashboard ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm'}
-                  onClick={() => handleToggleArrDashboard(instance.id)}
-                  style={{ gap: 4, fontSize: 12, alignSelf: 'flex-start' }}
-                >
-                  <LayoutDashboard size={12} />
-                  {onDashboard ? t('dashboard_toggle.on') : t('dashboard_toggle.add')}
-                </button>
-              )
-              if (instance.type === 'sabnzbd') {
-                return (
-                  <div key={instance.id} className="glass" style={{ borderRadius: 'var(--radius-xl)', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    <SabnzbdCardContent instance={instance} />
-                    {dashBtn}
-                  </div>
-                )
-              }
-              if (instance.type === 'seerr') {
-                return (
-                  <div key={instance.id} className="glass" style={{ borderRadius: 'var(--radius-xl)', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    <SeerrCardContent instance={instance} />
-                    {dashBtn}
-                  </div>
-                )
-              }
-              if (['radarr', 'sonarr', 'prowlarr'].includes(instance.type)) {
-                return (
-                  <div key={instance.id} className="glass" style={{ borderRadius: 'var(--radius-xl)', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    <ArrCardContent instance={instance} />
-                    {dashBtn}
-                  </div>
-                )
-              }
-              // HA and Unraid: simple info card
-              const color = (ARR_TYPE_COLORS as Record<string, string>)[instance.type] ?? 'var(--accent)'
-              return (
-                <div key={instance.id} className="glass" style={{ borderRadius: 'var(--radius-xl)', padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${color}22`, border: `1px solid ${color}44` }}>
-                      {(() => {
-                        const iconUrl = getIconUrl(instance)
-                        return iconUrl ? (
-                          <img src={iconUrl} alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} />
-                        ) : (
-                          <span style={{ fontSize: 11, fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>
-                            {instance.type.slice(0, 3).toUpperCase()}
-                          </span>
-                        )
-                      })()}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{instance.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{instance.url}</div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

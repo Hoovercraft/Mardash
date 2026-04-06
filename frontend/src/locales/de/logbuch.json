@@ -10,9 +10,6 @@
     "homelab_status": "Homelab Status",
     "running": "laufend",
     "docker_unavailable": "nicht verfügbar",
-    "recyclarr_none": "Kein Sync",
-    "recyclarr_ok": "Letzter Sync erfolgreich",
-    "recyclarr_fail": "Letzter Sync fehlgeschlagen",
     "reachable": "erreichbar",
     "total": "Gesamt"
   },

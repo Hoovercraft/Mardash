@@ -7,7 +7,6 @@ interface Props {
   setPage: (page: string) => void
   children: ReactNode
   onAddService: () => void
-  onAddInstance: () => void
   onAddWidget: () => void
   onCheckAll: () => void
   checking: boolean
@@ -18,7 +17,6 @@ export function AppShell({
   setPage,
   children,
   onAddService,
-  onAddInstance,
   onAddWidget,
   onCheckAll,
   checking,
@@ -30,7 +28,6 @@ export function AppShell({
         <Topbar
           page={page}
           onAddService={onAddService}
-          onAddInstance={onAddInstance}
           onAddWidget={onAddWidget}
           onCheckAll={onCheckAll}
           checking={checking}

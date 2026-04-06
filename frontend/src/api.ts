@@ -1,9 +1,5 @@
 import type { Service, Group, Settings, AuthUser, UserRecord, UserGroup, DashboardGroup, DashboardResponse, Widget, WidgetStats, DockerContainer, ContainerStats, Background, HaInstance, HaPanel, HaEntityFull, HaArea, EnergyData, CalendarEntry, HaFloorplan, HaFloorplanEntity, HaAlert, HaHistoryEntry, NetworkDevice, NetworkDeviceHistory, ScanResult, BackupSource, BackupStatusResult, ResourceSnapshot, ChangelogRelease, Instance, InstanceType, HelbackupWidgetStatus, HelbackupJob, HelbackupBackup, HelbackupHistoryEntry, HelbackupLogEvent } from './types'
-import type { SyncHistoryEntry, BackupEntry } from './types/recyclarr'
 import type { UnraidInstance, UnraidInfo, UnraidArray, UnraidParityHistory, UnraidContainer, UnraidVm, UnraidShare, UnraidUser, UnraidNotifications, UnraidConfig, UnraidPhysicalDisk, UnraidService, UnraidFlash, UnraidServer, UnraidOwner, UnraidMe, UnraidNetworkAccess, UnraidConnect, UnraidUpsDevice, UnraidUpsConfig, UnraidLogFile, UnraidPlugin, UnraidApiKey, UnraidDockerNetwork, UnraidMetricsDetailed } from './types/unraid'
-import type { ArrInstance, ArrStatus, ArrStats, ArrQueueResponse, ArrCalendarItem, ProwlarrIndexer, SabnzbdQueueData, SabnzbdHistoryData, SeerrRequest, SeerrRequestsResponse, RadarrMovie, SonarrSeries, ArrCustomFormat, ArrCFSpecification, ArrQualityProfile } from './types/arr'
-import type { TmdbPage, TmdbGenre, TmdbProvider, TmdbTvDetail, TmdbDiscoverFilters } from './types/tmdb'
-import type { SeerrTvDetail, SeerrMovieDetail } from './types/seerr'
 
 const BASE = '/api'
 
@@ -67,98 +63,7 @@ export const api = {
 
 
 
-  arr: {
-    instances: {
-      list: () => req<ArrInstance[]>('/arr/instances'),
-      create: (data: { type: string; name: string; url: string; api_key: string; enabled?: boolean; position?: number }) =>
-        req<ArrInstance>('/arr/instances', { method: 'POST', body: JSON.stringify(data) }),
-      update: (id: string, data: { name?: string; url?: string; api_key?: string; enabled?: boolean; position?: number }) =>
-        req<ArrInstance>(`/arr/instances/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-      delete: (id: string) => req<void>(`/arr/instances/${id}`, { method: 'DELETE' }),
-      updateVisibility: (groupId: string, hiddenInstanceIds: string[]) =>
-        req<{ ok: boolean; hidden_instance_ids: string[] }>(`/arr/groups/${groupId}/visibility`, {
-          method: 'PUT',
-          body: JSON.stringify({ hidden_instance_ids: hiddenInstanceIds }),
-        }),
-    },
-    status: (id: string) => req<ArrStatus>(`/arr/${id}/status`),
-    stats: (id: string) => req<ArrStats>(`/arr/${id}/stats`),
-    queue: (id: string) => req<ArrQueueResponse>(`/arr/${id}/queue`),
-    sabQueue: (id: string) => req<SabnzbdQueueData>(`/arr/${id}/queue`),
-    calendar: (id: string) => req<ArrCalendarItem[]>(`/arr/${id}/calendar`),
-    indexers: (id: string) => req<ProwlarrIndexer[]>(`/arr/${id}/indexers`),
-    history: (id: string) => req<SabnzbdHistoryData>(`/arr/${id}/history`),
-    seerrRequests: (id: string, page = 1, filter?: string) => {
-      const params = new URLSearchParams({ page: String(page) })
-      if (filter && filter !== 'all') params.set('filter', filter)
-      return req<SeerrRequestsResponse>(`/arr/${id}/requests?${params}`)
-    },
-    seerrApprove: (id: string, requestId: number) =>
-      req<SeerrRequest>(`/arr/${id}/requests/${requestId}/approve`, { method: 'POST', body: JSON.stringify({}) }),
-    seerrDecline: (id: string, requestId: number) =>
-      req<SeerrRequest>(`/arr/${id}/requests/${requestId}/decline`, { method: 'POST', body: JSON.stringify({}) }),
-    seerrDelete: (id: string, requestId: number) =>
-      req<void>(`/arr/${id}/requests/${requestId}`, { method: 'DELETE' }),
-    movies: (id: string) => req<RadarrMovie[]>(`/arr/${id}/movies`),
-    series: (id: string) => req<SonarrSeries[]>(`/arr/${id}/series`),
-    seerrTvDetail: (id: string, tmdbId: number) => req<SeerrTvDetail>(`/arr/${id}/tv/${tmdbId}`),
-    seerrMovieDetail: (id: string, tmdbId: number) => req<SeerrMovieDetail>(`/arr/${id}/movie/${tmdbId}`),
-    discoverRequest: (id: string, mediaType: 'movie' | 'tv', mediaId: number, seasons?: number[]) =>
-      req<unknown>(`/arr/${id}/discover/request`, { method: 'POST', body: JSON.stringify({ mediaType, mediaId, seasons }) }),
-    customFormats: {
-      list: (id: string) => req<ArrCustomFormat[]>(`/arr/${id}/custom-formats`),
-      create: (id: string, data: { name: string; trash_id?: string; includeCustomFormatWhenRenaming?: boolean; specifications: ArrCFSpecification[] }) =>
-        req<ArrCustomFormat>(`/arr/${id}/custom-formats`, { method: 'POST', body: JSON.stringify(data) }),
-      update: (id: string, cfId: number, data: { name: string; trash_id?: string; includeCustomFormatWhenRenaming?: boolean; specifications: ArrCFSpecification[] }) =>
-        req<ArrCustomFormat>(`/arr/${id}/custom-formats/${cfId}`, { method: 'PUT', body: JSON.stringify(data) }),
-      delete: (id: string, cfId: number, trashId?: string) =>
-        req<void>(`/arr/${id}/custom-formats/${cfId}${trashId ? `?trashId=${encodeURIComponent(trashId)}` : ''}`, { method: 'DELETE' }),
-    },
-    cfSchema: (id: string) => req<import('./types/arr').ArrCFSchema[]>(`/arr/${id}/custom-format-schema`),
-    qualityProfiles: {
-      list: (id: string) => req<ArrQualityProfile[]>(`/arr/${id}/quality-profiles`),
-      updateScores: (id: string, profileId: number, scores: { formatId: number; score: number }[]) =>
-        req<{ ok: boolean }>(`/arr/${id}/quality-profiles/${profileId}/scores`, { method: 'PUT', body: JSON.stringify({ scores }) }),
-    },
-    calendarCombined: (instanceIds: string[]) =>
-      req<{ items: CalendarEntry[]; fetched_at: string }>(`/arr/calendar/combined?instanceIds=${instanceIds.join(',')}`),
-  },
 
-  tmdb: {
-    trending: (mediaType = 'all', timeWindow = 'day') => {
-      const params = new URLSearchParams({ mediaType, timeWindow })
-      return req<TmdbPage>(`/tmdb/trending?${params}`)
-    },
-    discoverMovies: (page = 1, sortBy = 'popularity.desc', filters?: TmdbDiscoverFilters) => {
-      const params = new URLSearchParams({ page: String(page), sortBy })
-      if (filters?.language) params.set('language', filters.language)
-      if (filters?.genreIds?.length) params.set('genreIds', filters.genreIds.join(','))
-      if (filters?.watchProviderIds?.length) params.set('watchProviders', filters.watchProviderIds.join(','))
-      if (filters?.voteAverageGte) params.set('voteAverageGte', String(filters.voteAverageGte))
-      if (filters?.releaseYearFrom) params.set('releaseDateGte', `${filters.releaseYearFrom}-01-01`)
-      if (filters?.releaseYearTo) params.set('releaseDateLte', `${filters.releaseYearTo}-12-31`)
-      return req<TmdbPage>(`/tmdb/discover/movie?${params}`)
-    },
-    discoverTv: (page = 1, sortBy = 'popularity.desc', filters?: TmdbDiscoverFilters) => {
-      const params = new URLSearchParams({ page: String(page), sortBy })
-      if (filters?.language) params.set('language', filters.language)
-      if (filters?.genreIds?.length) params.set('genreIds', filters.genreIds.join(','))
-      if (filters?.watchProviderIds?.length) params.set('watchProviders', filters.watchProviderIds.join(','))
-      if (filters?.voteAverageGte) params.set('voteAverageGte', String(filters.voteAverageGte))
-      if (filters?.releaseYearFrom) params.set('firstAirDateGte', `${filters.releaseYearFrom}-01-01`)
-      if (filters?.releaseYearTo) params.set('firstAirDateLte', `${filters.releaseYearTo}-12-31`)
-      return req<TmdbPage>(`/tmdb/discover/tv?${params}`)
-    },
-    search: (query: string, page = 1, language?: string) => {
-      const params = new URLSearchParams({ query, page: String(page) })
-      if (language) params.set('language', language)
-      return req<TmdbPage>(`/tmdb/search?${params}`)
-    },
-    tvDetail: (tmdbId: number) => req<TmdbTvDetail>(`/tmdb/tv/${tmdbId}`),
-    movieDetail: (tmdbId: number) => req<unknown>(`/tmdb/movie/${tmdbId}`),
-    genres: (mediaType: 'movie' | 'tv') => req<{ genres: TmdbGenre[] }>(`/tmdb/genres/${mediaType}`),
-    watchProviders: (mediaType: 'movie' | 'tv') => req<{ results: TmdbProvider[] }>(`/tmdb/watchproviders/${mediaType}`),
-  },
 
   widgets: {
     list: () => req<Widget[]>('/widgets'),
@@ -297,83 +202,6 @@ export const api = {
     },
   },
 
-  recyclarr: {
-    profiles: (service: 'radarr' | 'sonarr', forceRefresh = false) =>
-      req<{ profiles: import('./types/recyclarr').RecyclarrProfile[]; warning: boolean }>(
-        `/recyclarr/profiles/${service}${forceRefresh ? '?refresh=1' : ''}`
-      ),
-    cfs: (service: 'radarr' | 'sonarr', forceRefresh = false) =>
-      req<{ cfs: import('./types/recyclarr').RecyclarrCf[]; warning: boolean }>(
-        `/recyclarr/cfs/${service}${forceRefresh ? '?refresh=1' : ''}`
-      ),
-    configs: () => req<import('./types/recyclarr').RecyclarrConfigsResponse>('/recyclarr/configs'),
-    saveConfig: (instanceId: string, data: {
-      enabled: boolean
-      selectedProfiles: string[]
-      scoreOverrides: import('./types/recyclarr').RecyclarrScoreOverride[]
-      userCfNames: import('./types/recyclarr').RecyclarrUserCf[]
-      preferredRatio: number
-      profilesConfig: import('./types/recyclarr').RecyclarrProfileConfig[]
-      syncSchedule: string
-      deleteOldCfs: boolean
-      qualityDefType?: string
-      yamlInstanceKey?: string
-      lastKnownScores?: import('./types/recyclarr').LastKnownScores
-    }) => req<{ ok: boolean }>(`/recyclarr/configs/${instanceId}`, { method: 'POST', body: JSON.stringify(data) }),
-    previewYaml: () => req<{ yaml: string }>('/recyclarr/yaml-preview'),
-    previewYamlForInstance: (instanceId: string, data: {
-      enabled: boolean
-      selectedProfiles: string[]
-      scoreOverrides: import('./types/recyclarr').RecyclarrScoreOverride[]
-      userCfNames: import('./types/recyclarr').RecyclarrUserCf[]
-      preferredRatio: number
-      profilesConfig: import('./types/recyclarr').RecyclarrProfileConfig[]
-      syncSchedule: string
-      deleteOldCfs: boolean
-      qualityDefType?: string
-      yamlInstanceKey?: string
-    }) => req<{ yaml: string }>(`/recyclarr/preview-yaml/${instanceId}`, { method: 'POST', body: JSON.stringify(data) }),
-    trashCfNames: (service: 'radarr' | 'sonarr') =>
-      req<{ names: string[]; cached: boolean; warning?: string }>(`/recyclarr/trash-cf-names?service=${service}`),
-    resetConfig: () => req<{ ok: boolean }>('/recyclarr/reset', { method: 'POST', body: JSON.stringify({}) }),
-    clearCache: (service: 'radarr' | 'sonarr') => req<{ ok: boolean }>(`/recyclarr/cache/${service}`, { method: 'DELETE', body: JSON.stringify({}) }),
-    listUserCfs: (service: 'radarr' | 'sonarr') =>
-      req<{ cfs: import('./types/recyclarr').UserCfFile[] }>(`/recyclarr/user-cfs/${service}`),
-    createUserCf: (service: 'radarr' | 'sonarr', data: { name: string; specifications: import('./types/recyclarr').UserCfSpecification[] }) =>
-      req<{ cf: import('./types/recyclarr').UserCfFile }>(`/recyclarr/user-cfs/${service}`, { method: 'POST', body: JSON.stringify(data) }),
-    updateUserCf: (service: 'radarr' | 'sonarr', trashId: string, data: { name: string; specifications: import('./types/recyclarr').UserCfSpecification[] }) =>
-      req<{ cf: import('./types/recyclarr').UserCfFile }>(`/recyclarr/user-cfs/${service}/${trashId}`, { method: 'PUT', body: JSON.stringify(data) }),
-    deleteUserCf: (service: 'radarr' | 'sonarr', trashId: string) =>
-      req<void>(`/recyclarr/user-cfs/${service}/${trashId}`, { method: 'DELETE', body: JSON.stringify({}) }),
-    saveSchedule: (syncSchedule: string) =>
-      req<{ ok: boolean; syncSchedule: string }>('/recyclarr/schedule', { method: 'PATCH', body: JSON.stringify({ syncSchedule }) }),
-    adopt: () => req<{ ok: boolean; output: string }>('/recyclarr/adopt', { method: 'POST', body: JSON.stringify({}) }),
-    arrData: (instanceId: string) =>
-      req<{ profiles: import('./types/recyclarr').ArrQualityProfile[]; customFormats: import('./types/recyclarr').ArrCustomFormat[]; error?: string }>(`/recyclarr/arr-data/${instanceId}`),
-    checkScoreChanges: (instanceId: string, profileData: import('./types/recyclarr').ArrQualityProfile[]) =>
-      req<{ hasChanges: boolean; changes: import('./types/recyclarr').ScoreChange[] }>(`/recyclarr/check-score-changes/${instanceId}`, { method: 'POST', body: JSON.stringify({ profileData }) }),
-    acceptScoreChanges: (instanceId: string, changes: import('./types/recyclarr').ScoreChange[]) =>
-      req<{ ok: boolean }>(`/recyclarr/accept-score-changes/${instanceId}`, { method: 'POST', body: JSON.stringify({ changes }) }),
-    profileCfs: (instanceId: string, profileTrashId: string) =>
-      req<{
-        cfs: { arrId: number; name: string; currentScore: number; groups: string[]; inMultipleGroups: boolean }[];
-        groups: { name: string; cfNames: string[]; syncEnabled: boolean }[];
-        notInProfile: { arrId: number; name: string; currentScore: number }[];
-        warning: boolean;
-        warningMessage?: string;
-      }>(`/recyclarr/profile-cfs/${instanceId}?profileTrashId=${encodeURIComponent(profileTrashId)}`),
-    listProfiles: (instanceId: string) =>
-      req<{ profiles: { trash_id: string; name: string }[] }>(`/recyclarr/list-profiles/${instanceId}`),
-    listScoreSets: (instanceId: string) =>
-      req<{ scoreSets: string[] }>(`/recyclarr/list-score-sets/${instanceId}`),
-    containerStatus: (containerName: string) =>
-      req<{ running: boolean; name: string }>(`/recyclarr/container-status?name=${encodeURIComponent(containerName)}`),
-    importableCfs: (instanceId: string) =>
-      req<{ importable: import('./types/arr').ArrCustomFormat[]; alreadyManaged: { cf: import('./types/arr').ArrCustomFormat; hasChanges: boolean }[] }>(`/recyclarr/importable-cfs/${instanceId}`),
-    syncHistory: () => req<{ history: SyncHistoryEntry[] }>('/recyclarr/sync-history'),
-    backups: () => req<{ backups: BackupEntry[] }>('/recyclarr/backups'),
-    restoreBackup: (filename: string) => req<{ ok: boolean }>(`/recyclarr/backups/${encodeURIComponent(filename)}/restore`, { method: 'POST', body: JSON.stringify({}) }),
-  },
 
   activity: {
     list: (category?: string) => {
@@ -395,7 +223,6 @@ export const api = {
       breakdown: {
         services: { online: number; total: number; points: number }
         docker: { running: number; total: number; points: number; available: boolean }
-        recyclarr: { lastSyncSuccess: boolean | null; points: number }
         ha: { reachable: number; total: number; points: number }
       }
     }>('/logbuch/health-score'),

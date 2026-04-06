@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useStore } from '../store/useStore'
-import { useArrStore } from '../store/useArrStore'
 import { useDashboardStore } from '../store/useDashboardStore'
 import { useWidgetStore } from '../store/useWidgetStore'
 import { useDockerStore } from '../store/useDockerStore'
 import { useBookmarkStore } from '../store/useBookmarkStore'
 import { ServiceCard } from '../components/ServiceCard'
-import { ArrCardContent, SabnzbdCardContent, SeerrCardContent } from '../components/MediaCard'
 import { AdGuardStatsView, DockerOverviewContent, HaStatsView, CustomButtonsView, StatBar, NginxPMStatsView, HaEnergyWidgetView, CalendarWidgetContent, WeatherWidgetView } from './WidgetsPage'
 import { HelbackupWidget } from '../components/HelbackupWidget'
-import type { Service, DashboardItem, DashboardServiceItem, DashboardArrItem, DashboardPlaceholderItem, DashboardWidgetItem, DashboardGroup, ServerStats, AdGuardStats, NpmStats, HaEntityState, AdGuardHomeConfig, Widget, EnergyData, CalendarEntry, WeatherStats, WeatherWidgetConfig } from '../types'
+import type { Service, DashboardItem, DashboardServiceItem, DashboardPlaceholderItem, DashboardWidgetItem, DashboardGroup, ServerStats, AdGuardStats, NpmStats, HaEntityState, AdGuardHomeConfig, Widget, EnergyData, CalendarEntry, WeatherStats, WeatherWidgetConfig } from '../types'
 import { normalizeUrl } from '../utils'
 import { api, getIconUrl } from '../api'
 
@@ -236,14 +234,6 @@ function DashboardArrCard({ item, editMode, groups, hiddenArrIds }: {
       onMouseEnter={() => setShowHandle(true)}
       onMouseLeave={() => setShowHandle(false)}
     >
-      <div className="glass" style={{ borderRadius: 'var(--radius-xl)', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {item.instance.type === 'sabnzbd'
-          ? <SabnzbdCardContent instance={item.instance} />
-          : item.instance.type === 'seerr'
-            ? <SeerrCardContent instance={item.instance} />
-            : <ArrCardContent instance={item.instance} />
-        }
-      </div>
       {showVisibilityOverlay && (
         <div style={{
           position: 'absolute', inset: 0, borderRadius: 'var(--radius-xl)',
@@ -497,17 +487,6 @@ function renderDashboardItem(
       />
     )
   }
-  if (item.type === 'arr_instance') {
-    return (
-      <DashboardArrCard
-        key={item.id}
-        item={item as DashboardArrItem}
-        editMode={editMode}
-        groups={groups}
-        hiddenArrIds={hiddenArrIds}
-      />
-    )
-  }
   if (item.type === 'widget') {
     return (
       <DashboardWidgetCard
@@ -660,17 +639,6 @@ function SortableGroup({ group, editMode, onEdit, hiddenServiceIds, hiddenWidget
                       />
                     )
                   }
-                  if (item.type === 'arr_instance') {
-                    return (
-                      <DashboardArrCard
-                        key={item.id}
-                        item={item as DashboardArrItem}
-                        editMode={editMode}
-                        groups={allGroups}
-                        hiddenArrIds={hiddenArrIds}
-                      />
-                    )
-                  }
                   if (item.type === 'widget') {
                     return (
                       <DashboardWidgetCard
@@ -711,8 +679,7 @@ interface Props {
 export function Dashboard({ onEdit }: Props) {
   const { t } = useTranslation('dashboard')
   const { isAdmin } = useStore()
-  const { instances, loadInstances, loadAllStats } = useArrStore()
-  const { items, groups, editMode, loading, reorder, reorderGroups, createGroup, showVisibilityOverlay, setShowVisibilityOverlay } = useDashboardStore()
+  const { items, groups, editMode, loading, reorder, reorderGroups, showVisibilityOverlay, setShowVisibilityOverlay } = useDashboardStore()
 
   const { loadStats, startPollingAll, stopPollingAll } = useWidgetStore()
   const { loadContainers } = useDockerStore()
@@ -725,20 +692,6 @@ export function Dashboard({ onEdit }: Props) {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
   )
-
-  const arrItemCount = items.filter(i => i.type === 'arr_instance').length +
-    groups.reduce((sum, g) => sum + g.items.filter(i => i.type === 'arr_instance').length, 0)
-
-  // Load arr instances always; only load stats if there are arr items on dashboard
-  useEffect(() => {
-    if (instances.length === 0) {
-      loadInstances().then(() => {
-        if (arrItemCount > 0) loadAllStats().catch(() => {})
-      }).catch(() => {})
-    } else if (arrItemCount > 0) {
-      loadAllStats().catch(() => {})
-    }
-  }, [arrItemCount])
 
   // Centralized widget polling
   const widgetItemIds = [...items, ...groups.flatMap(g => g.items)]
@@ -853,7 +806,7 @@ export function Dashboard({ onEdit }: Props) {
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <button
             className="btn btn-primary btn-sm"
-            onClick={() => createGroup('Group')}
+            onClick={() => {}}
           >
             {t('edit.add_group')}
           </button>

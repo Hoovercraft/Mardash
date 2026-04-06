@@ -45,9 +45,6 @@ export interface Settings {
   design_animations?: 'full' | 'reduced' | 'none'
   design_sidebar_style?: 'default' | 'minimal' | 'floating'
   design_custom_css?: string
-  tmdb_api_key?: string
-  recyclarr_container_name?: string
-  recyclarr_config_path?: string
 }
 
 export interface AuthUser {
@@ -81,7 +78,6 @@ export interface DashboardServiceItem {
 
 export interface DashboardArrItem {
   id: string
-  type: 'arr_instance'
   position: number
   ref_id: string
   group_id?: string | null

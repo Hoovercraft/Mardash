@@ -13,7 +13,6 @@ import { containerCounts } from '../utils'
 interface Props {
   page: string
   onAddService: () => void
-  onAddInstance: () => void
   onAddWidget: () => void
   onCheckAll: () => void
   checking: boolean
@@ -25,7 +24,7 @@ const ACCENTS: { value: ThemeAccent; label: string; color: string }[] = [
   { value: 'magenta', label: 'Magenta', color: '#e879f9' },
 ]
 
-export function Topbar({ page, onAddService, onAddInstance, onAddWidget, onCheckAll, checking }: Props) {
+export function Topbar({ page, onAddService, onAddWidget, onCheckAll, checking }: Props) {
   const { t } = useTranslation('common')
   const { language } = useLanguageStore()
   const dateLocale = language === 'de' ? 'de-DE' : 'en-US'
@@ -258,22 +257,15 @@ export function Topbar({ page, onAddService, onAddInstance, onAddWidget, onCheck
             </button>
             <button className="btn btn-primary" onClick={onAddService} style={{ gap: 6 }}>
               <Plus size={15} />
-              Hinzufügen
+              Control Center
             </button>
           </>
-        )}
-
-        {page === 'media' && (
-          <button className="btn btn-primary" onClick={onAddInstance} style={{ gap: 6 }}>
-            <Plus size={15} />
-            Instanz
-          </button>
         )}
 
         {page === 'widgets' && (
           <button className="btn btn-primary" onClick={onAddWidget} style={{ gap: 6 }}>
             <Plus size={15} />
-            Widget
+            Control Center
           </button>
         )}
 

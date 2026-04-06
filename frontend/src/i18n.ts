@@ -12,7 +12,6 @@ import deNetwork from './locales/de/network.json'
 import deLogbuch from './locales/de/logbuch.json'
 import deAbout from './locales/de/about.json'
 import deBookmarks from './locales/de/bookmarks.json'
-import deMedia from './locales/de/media.json'
 import deServices from './locales/de/services.json'
 import deWidgets from './locales/de/widgets.json'
 import deInstances from './locales/de/instances.json'
@@ -36,7 +35,6 @@ i18n.use(initReactI18next).init({
       logbuch: deLogbuch,
       about: deAbout,
       bookmarks: deBookmarks,
-      media: deMedia,
       services: deServices,
       widgets: deWidgets,
       instances: deInstances,

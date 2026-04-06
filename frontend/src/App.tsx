@@ -88,9 +88,8 @@ export default function App() {
             <AppShell
               page={page}
               setPage={setPage}
-              onAddService={handleAddService}
-              onAddInstance={() => setPage('media')}
-              onAddWidget={() => setShowAddWidget(true)}
+              onAddService={() => setPage('control_center')}
+              onAddWidget={() => setPage('control_center')}
               onCheckAll={handleCheckAll}
               checking={checking}
             >

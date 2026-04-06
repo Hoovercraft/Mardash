@@ -5,7 +5,6 @@ import type { ResourceSnapshot } from '../types'
 import { useStore } from '../store/useStore'
 import { useActivityStore } from '../store/useActivityStore'
 import type { ActivityEntry } from '../store/useActivityStore'
-import { useRecyclarrStore } from '../store/useRecyclarrStore'
 import { api, getIconUrl } from '../api'
 import type { Service } from '../types'
 
@@ -16,7 +15,6 @@ interface HealthScore {
   breakdown: {
     services: { online: number; total: number; points: number }
     docker: { running: number; total: number; points: number; available: boolean }
-    recyclarr: { lastSyncSuccess: boolean | null; points: number }
     ha: { reachable: number; total: number; points: number }
   }
 }
@@ -38,7 +36,6 @@ interface Anomaly {
 const TABS_CONFIG = [
   { key: 'aktivitaeten', labelKey: 'tabs.aktivitaeten', icon: Activity },
   { key: 'uptime', labelKey: 'tabs.uptime', icon: TrendingUp },
-  { key: 'sync', labelKey: 'tabs.sync', icon: RefreshCw },
   { key: 'ressourcen', labelKey: 'tabs.ressourcen', icon: Cpu },
 ]
 
@@ -101,14 +98,6 @@ function HealthScoreBadge({ hs }: { hs: HealthScore | null }) {
                 : `Docker: ${t('health.docker_unavailable')}`}
             </span>
             <span style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>+{hs.breakdown.docker.points}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>
-              Recyclarr: {hs.breakdown.recyclarr.lastSyncSuccess === null
-                ? t('health.recyclarr_none')
-                : hs.breakdown.recyclarr.lastSyncSuccess ? t('health.recyclarr_ok') : t('health.recyclarr_fail')}
-            </span>
-            <span style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>+{hs.breakdown.recyclarr.points}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ color: 'var(--text-secondary)' }}>
@@ -252,11 +241,10 @@ function EreignisKalender({ days }: { days: CalendarDay[] }) {
 
 // ── Aktivitäten Tab ───────────────────────────────────────────────────────────
 
-const ACTIVITY_CATEGORIES = ['all', 'system', 'docker', 'ha', 'recyclarr', 'network', 'backup']
+const ACTIVITY_CATEGORIES = ['all', 'system', 'docker', 'ha', 'network', 'backup']
 const categoryIconNode: Record<string, React.ReactNode> = {
   docker: <Container size={12} />,
   ha: <Home size={12} />,
-  recyclarr: <RefreshCw size={12} />,
   system: <Activity size={12} />,
   network: <Network size={12} />,
   backup: <HardDrive size={12} />,
@@ -285,7 +273,6 @@ function AktivitaetenTab({ anomalies }: { anomalies: Anomaly[] }) {
     system: t('activity.cat_system'),
     docker: 'Docker',
     ha: 'HA',
-    recyclarr: 'Recyclarr',
     network: t('activity.cat_network'),
     backup: 'Backup',
   }
@@ -658,7 +645,6 @@ function UptimeOverview({ services }: { services: Service[] }) {
 
 function SyncTab() {
   const { t } = useTranslation('logbuch')
-  const { syncHistory, loadSyncHistory } = useRecyclarrStore()
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -965,7 +951,6 @@ export function LogbuchPage() {
       {/* Tab content */}
       {activeTab === 'aktivitaeten' && <AktivitaetenTab anomalies={anomalies} />}
       {activeTab === 'uptime' && <UptimeOverview services={services} />}
-      {activeTab === 'sync' && <SyncTab />}
       {activeTab === 'ressourcen' && <RessourcenTab />}
     </div>
   )
