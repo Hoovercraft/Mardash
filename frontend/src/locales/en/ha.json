@@ -1,0 +1,298 @@
+{
+  "title": "Home Assistant",
+  "tabs": {
+    "overview": "Floor Plan",
+    "scenes": "Scenes",
+    "automations": "Automations"
+  },
+  "instance": {
+    "add": "Add Instance",
+    "edit": "Edit Instance",
+    "no_instances": "No Home Assistant instances configured.",
+    "add_first": "Add first instance",
+    "name": "Name",
+    "url": "URL",
+    "token": "Long-Lived Access Token",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saving": "Saving…",
+    "delete_confirm": "Delete instance?",
+    "delete_confirm_msg": "All panels for this instance will also be deleted."
+  },
+  "panel": {
+    "add": "Add Panel",
+    "edit": "Edit Panel",
+    "label": "Label",
+    "label_placeholder": "Empty = use HA name",
+    "room": "Room",
+    "no_room": "No room",
+    "area": "Area",
+    "no_area": "— No area —",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete_confirm": "Remove panel?"
+  },
+  "browser": {
+    "title": "Select Entity",
+    "search": "Search entities…",
+    "add": "Add",
+    "added": "Added",
+    "loading": "Loading entities…",
+    "error": "Error loading"
+  },
+  "floorplan": {
+    "title": "Floor Plan",
+    "upload": "Upload image",
+    "change_image": "Change image",
+    "no_image": "No floor plan image available.",
+    "place_entity": "Place entity",
+    "no_entities": "No entities",
+    "no_instance": "No Home Assistant instance configured.",
+    "no_floorplan": "No floor plan created yet.",
+    "add_first": "Create first floor plan",
+    "add_floor": "Floor",
+    "undo": "Undo",
+    "modal_title": "New Floor",
+    "name_label": "Name",
+    "name_placeholder": "e.g. Ground Floor",
+    "type_label": "Type",
+    "type_indoor": "Indoor",
+    "type_outdoor": "Outdoor",
+    "level_label": "Level (−2 to 10)",
+    "create": "Create",
+    "error_name_required": "Name required",
+    "error_save": "Error saving"
+  },
+  "alerts": {
+    "title": "Alerts",
+    "add": "Add Alert",
+    "no_alerts": "No alerts configured.",
+    "entity": "Entity",
+    "condition": "Condition",
+    "message": "Message",
+    "min_interval": "Min. interval (sec)",
+    "delete_confirm": "Delete alert?",
+    "header": "Notifications",
+    "no_configured": "No notifications configured yet.",
+    "new_notification": "New Notification",
+    "add_notification": "Add notification",
+    "deactivate": "Deactivate",
+    "activate": "Activate",
+    "delete": "Delete",
+    "condition_types": {
+      "state_equals": "State equals",
+      "state_above": "Value above",
+      "state_below": "Value below",
+      "state_changes": "State changes"
+    },
+    "form": {
+      "entity_id": "Entity ID",
+      "condition_type": "Condition type",
+      "condition_value": "Condition value",
+      "message": "Message",
+      "cancel": "Cancel",
+      "create": "Create",
+      "error_entity_required": "Entity ID required",
+      "error_message_required": "Message required",
+      "error_value_required": "Condition value required",
+      "error_create": "Error creating notification"
+    }
+  },
+  "history": {
+    "title": "History",
+    "no_data": "No history data",
+    "loading": "Loading history…"
+  },
+  "entity_history": {
+    "title": "History: {{name}}",
+    "no_data": "No history data available.",
+    "col_time": "Time",
+    "col_status": "Status",
+    "error_loading": "Error loading",
+    "period": {
+      "6": "6h",
+      "24": "24h",
+      "168": "7d",
+      "720": "30d"
+    }
+  },
+  "gps": {
+    "no_gps_selected": "No GPS data available for selected persons",
+    "privacy_notice": "GPS data is only displayed locally — not transmitted to third parties",
+    "no_instance": "No HA instance selected.",
+    "no_persons": "No person.* entities found in Home Assistant.",
+    "persons_selected": "Persons ({{selected}}/{{total}} selected)",
+    "state_home": "Home",
+    "state_not_home": "Away"
+  },
+  "presence": {
+    "no_gps_data": "No GPS data available",
+    "map_unavailable": "GPS map unavailable",
+    "show_gps": "Show GPS map",
+    "hide_gps": "Hide GPS map",
+    "gps_btn_on": "GPS off",
+    "gps_btn_off": "GPS map"
+  },
+  "view": {
+    "panels": "Panels",
+    "floorplan": "Floor Plan",
+    "gps": "GPS",
+    "alerts": "Alerts",
+    "flat": "Flat",
+    "by_room": "By Room",
+    "no_rooms": "Rooms not configured in Home Assistant",
+    "unassigned": "Unassigned"
+  },
+  "scenes": {
+    "search": "Search scenes…",
+    "scene_label": "Scene",
+    "run": "Run",
+    "running": "Executed!",
+    "empty": "No scenes or scripts found."
+  },
+  "automations": {
+    "search": "Search automations…",
+    "trigger": "Trigger",
+    "enable": "Enable",
+    "disable": "Disable",
+    "on": "On",
+    "off": "Off",
+    "empty": "No automations found."
+  },
+  "instances": "Instances",
+  "add_instance": "Add Instance",
+  "energy": {
+    "btn": "Energy",
+    "add_panel_title": "Add Energy Dashboard",
+    "ha_instance": "HA Instance",
+    "already_added": "(already added)",
+    "select_instance": "Select an instance",
+    "already_added_error": "Energy panel already added for this instance",
+    "add_failed": "Failed to add panel",
+    "adding": "Adding…",
+    "add_btn": "Add Panel",
+    "cancel": "Cancel",
+    "title_fallback": "Energy Dashboard",
+    "grid_consumption": "Grid Consumption",
+    "solar_production": "Solar Production",
+    "self_sufficiency": "Self-Sufficiency",
+    "grid_return": "Grid Return",
+    "gas": "Gas",
+    "battery": "Battery",
+    "period_day": "Today",
+    "period_week": "Week",
+    "period_month": "Month",
+    "chart_consumption": "Consumption",
+    "chart_solar": "Solar",
+    "chart_return": "Return",
+    "not_configured": "Energy not configured in Home Assistant"
+  },
+  "edit_panel": {
+    "title": "Edit Panel",
+    "custom_label": "Custom Label",
+    "label_placeholder": "Leave blank to use friendly_name",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "browser_modal": {
+    "title": "Add Entity Panel",
+    "subtitle": "Select entities to pin as panels on your dashboard.",
+    "instance_label": "Instance",
+    "search_placeholder": "Search entities…",
+    "already_added_tooltip": "Already added",
+    "add_panel_tooltip": "Add panel"
+  },
+  "header": {
+    "add_panel": "Add Panel",
+    "alerts": "Alerts"
+  },
+  "tabs_label": {
+    "panels": "Panels"
+  },
+  "status": {
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "connecting": "Connecting…"
+  },
+  "panel_card": {
+    "relative_time": {
+      "just_now": "just now",
+      "minutes_ago": "{{min}} min ago",
+      "hours_ago": "{{hr}}h ago",
+      "updated": "Updated {{time}}"
+    },
+    "domains": {
+      "light": "Light",
+      "switch": "Switch",
+      "sensor": "Sensor",
+      "binary_sensor": "Binary Sensor",
+      "climate": "Climate",
+      "cover": "Cover",
+      "media_player": "Media Player",
+      "input_boolean": "Input Boolean",
+      "automation": "Automation",
+      "fan": "Fan",
+      "lock": "Lock",
+      "scene": "Scene",
+      "script": "Script"
+    },
+    "tooltips": {
+      "history": "History",
+      "edit": "Edit label",
+      "remove": "Remove panel",
+      "turn_on": "Turn on",
+      "turn_off": "Turn off"
+    },
+    "light": {
+      "brightness": "Brightness {{pct}}%",
+      "color_temp": "Color Temp"
+    },
+    "climate": {
+      "current": "Current:"
+    },
+    "media": {
+      "volume": "Volume {{pct}}%",
+      "source": "Source"
+    },
+    "cover": {
+      "open": "Open",
+      "stop": "Stop",
+      "close": "Close",
+      "position": "Position {{pct}}%"
+    },
+    "script_scene": {
+      "run": "Run",
+      "activate": "Activate"
+    },
+    "pin": {
+      "confirm": "Confirm",
+      "lock_title": "Lock {{name}} {{action}}",
+      "lock_action": "lock",
+      "unlock_action": "unlock",
+      "alarm_title": "Alarm {{action}}",
+      "alarm_arm": "arm",
+      "alarm_disarm": "disarm"
+    },
+    "lock": {
+      "locked": "Locked",
+      "unlocked": "Unlocked",
+      "unknown": "Unknown",
+      "lock_btn": "Lock",
+      "unlock_btn": "Unlock"
+    },
+    "alarm": {
+      "disarmed": "Disarmed",
+      "armed_home": "Armed (Home)",
+      "armed_away": "Armed (Away)",
+      "armed_night": "Armed (Night)",
+      "armed_vacation": "Armed (Vacation)",
+      "pending": "Pending",
+      "triggered": "TRIGGERED",
+      "arming": "Arming...",
+      "action_home": "Home",
+      "action_away": "Away",
+      "action_night": "Night",
+      "action_disarm": "Disarm"
+    }
+  }
+}

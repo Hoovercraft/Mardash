@@ -1,0 +1,298 @@
+{
+  "title": "Home Assistant",
+  "tabs": {
+    "overview": "Hausübersicht",
+    "scenes": "Szenarien",
+    "automations": "Automationen"
+  },
+  "instance": {
+    "add": "Instanz hinzufügen",
+    "edit": "Instanz bearbeiten",
+    "no_instances": "Keine Home Assistant Instanzen konfiguriert.",
+    "add_first": "Erste Instanz hinzufügen",
+    "name": "Name",
+    "url": "URL",
+    "token": "Long-Lived Access Token",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "saving": "Speichern…",
+    "delete_confirm": "Instanz löschen?",
+    "delete_confirm_msg": "Alle Panels dieser Instanz werden ebenfalls gelöscht."
+  },
+  "panel": {
+    "add": "Panel hinzufügen",
+    "edit": "Panel bearbeiten",
+    "label": "Label",
+    "label_placeholder": "Leer = HA-Name verwenden",
+    "room": "Raum",
+    "no_room": "Kein Raum",
+    "area": "Bereich",
+    "no_area": "— Kein Bereich —",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete_confirm": "Panel entfernen?"
+  },
+  "browser": {
+    "title": "Entität auswählen",
+    "search": "Entitäten suchen…",
+    "add": "Hinzufügen",
+    "added": "Hinzugefügt",
+    "loading": "Lade Entitäten…",
+    "error": "Fehler beim Laden"
+  },
+  "floorplan": {
+    "title": "Grundriss",
+    "upload": "Bild hochladen",
+    "change_image": "Bild ändern",
+    "no_image": "Kein Grundriss-Bild vorhanden.",
+    "place_entity": "Entität platzieren",
+    "no_entities": "Keine Entities",
+    "no_instance": "Keine Home Assistant Instanz konfiguriert.",
+    "no_floorplan": "Noch kein Grundriss angelegt.",
+    "add_first": "Ersten Grundriss anlegen",
+    "add_floor": "Etage",
+    "undo": "Rückgängig",
+    "modal_title": "Neue Etage",
+    "name_label": "Name",
+    "name_placeholder": "z.B. Erdgeschoss",
+    "type_label": "Typ",
+    "type_indoor": "Indoor",
+    "type_outdoor": "Outdoor",
+    "level_label": "Ebene (−2 bis 10)",
+    "create": "Anlegen",
+    "error_name_required": "Name erforderlich",
+    "error_save": "Fehler beim Speichern"
+  },
+  "alerts": {
+    "title": "Alarme",
+    "add": "Alarm hinzufügen",
+    "no_alerts": "Keine Alarme konfiguriert.",
+    "entity": "Entität",
+    "condition": "Bedingung",
+    "message": "Nachricht",
+    "min_interval": "Min. Interval (Sek.)",
+    "delete_confirm": "Alarm löschen?",
+    "header": "Benachrichtigungen",
+    "no_configured": "Noch keine Benachrichtigungen konfiguriert.",
+    "new_notification": "Neue Benachrichtigung",
+    "add_notification": "Benachrichtigung hinzufügen",
+    "deactivate": "Deaktivieren",
+    "activate": "Aktivieren",
+    "delete": "Löschen",
+    "condition_types": {
+      "state_equals": "Status gleich",
+      "state_above": "Wert über",
+      "state_below": "Wert unter",
+      "state_changes": "Status ändert sich"
+    },
+    "form": {
+      "entity_id": "Entity-ID",
+      "condition_type": "Bedingungstyp",
+      "condition_value": "Bedingungswert",
+      "message": "Nachricht",
+      "cancel": "Abbrechen",
+      "create": "Erstellen",
+      "error_entity_required": "Entity-ID erforderlich",
+      "error_message_required": "Nachricht erforderlich",
+      "error_value_required": "Bedingungswert erforderlich",
+      "error_create": "Fehler beim Erstellen"
+    }
+  },
+  "history": {
+    "title": "Verlauf",
+    "no_data": "Keine Verlaufsdaten",
+    "loading": "Lade Verlauf…"
+  },
+  "entity_history": {
+    "title": "Verlauf: {{name}}",
+    "no_data": "Keine Verlaufsdaten verfügbar.",
+    "col_time": "Zeit",
+    "col_status": "Status",
+    "error_loading": "Fehler beim Laden",
+    "period": {
+      "6": "6h",
+      "24": "24h",
+      "168": "7T",
+      "720": "30T"
+    }
+  },
+  "gps": {
+    "no_gps_selected": "Keine GPS-Daten für die ausgewählten Personen verfügbar",
+    "privacy_notice": "GPS-Daten werden nur lokal angezeigt — keine Übertragung an Dritte",
+    "no_instance": "Keine HA-Instanz ausgewählt.",
+    "no_persons": "Keine person.*-Entitäten in Home Assistant gefunden.",
+    "persons_selected": "Personen ({{selected}}/{{total}} ausgewählt)",
+    "state_home": "Zuhause",
+    "state_not_home": "Unterwegs"
+  },
+  "presence": {
+    "no_gps_data": "Keine GPS-Daten verfügbar",
+    "map_unavailable": "GPS-Karte nicht verfügbar",
+    "show_gps": "GPS-Karte anzeigen",
+    "hide_gps": "GPS-Karte ausblenden",
+    "gps_btn_on": "GPS aus",
+    "gps_btn_off": "GPS-Karte"
+  },
+  "view": {
+    "panels": "Panels",
+    "floorplan": "Grundriss",
+    "gps": "GPS",
+    "alerts": "Alarme",
+    "flat": "Flach",
+    "by_room": "Nach Raum",
+    "no_rooms": "Räume in Home Assistant nicht konfiguriert",
+    "unassigned": "Ohne Raum"
+  },
+  "scenes": {
+    "search": "Szenarien suchen…",
+    "scene_label": "Szene",
+    "run": "Ausführen",
+    "running": "Ausgeführt!",
+    "empty": "Keine Szenarien oder Scripts gefunden."
+  },
+  "automations": {
+    "search": "Automationen suchen…",
+    "trigger": "Auslösen",
+    "enable": "Aktivieren",
+    "disable": "Deaktivieren",
+    "on": "An",
+    "off": "Aus",
+    "empty": "Keine Automationen gefunden."
+  },
+  "instances": "Instanzen",
+  "add_instance": "Instanz hinzufügen",
+  "energy": {
+    "btn": "Energie",
+    "add_panel_title": "Energie-Dashboard hinzufügen",
+    "ha_instance": "HA Instanz",
+    "already_added": "(bereits hinzugefügt)",
+    "select_instance": "Instanz auswählen",
+    "already_added_error": "Energie-Panel für diese Instanz bereits hinzugefügt",
+    "add_failed": "Panel konnte nicht hinzugefügt werden",
+    "adding": "Hinzufügen…",
+    "add_btn": "Panel hinzufügen",
+    "cancel": "Abbrechen",
+    "title_fallback": "Energie-Dashboard",
+    "grid_consumption": "Netzbezug",
+    "solar_production": "Solar-Produktion",
+    "self_sufficiency": "Autarkie",
+    "grid_return": "Netzeinspeisung",
+    "gas": "Gas",
+    "battery": "Batterie",
+    "period_day": "Heute",
+    "period_week": "Woche",
+    "period_month": "Monat",
+    "chart_consumption": "Verbrauch",
+    "chart_solar": "Solar",
+    "chart_return": "Einspeisung",
+    "not_configured": "Energie nicht in Home Assistant konfiguriert"
+  },
+  "edit_panel": {
+    "title": "Panel bearbeiten",
+    "custom_label": "Benutzerdefiniertes Label",
+    "label_placeholder": "Leer lassen um friendly_name zu verwenden",
+    "cancel": "Abbrechen",
+    "save": "Speichern"
+  },
+  "browser_modal": {
+    "title": "Entität-Panel hinzufügen",
+    "subtitle": "Entitäten als Panels auf dem Dashboard anpinnen.",
+    "instance_label": "Instanz",
+    "search_placeholder": "Entitäten suchen…",
+    "already_added_tooltip": "Bereits hinzugefügt",
+    "add_panel_tooltip": "Panel hinzufügen"
+  },
+  "header": {
+    "add_panel": "Panel hinzufügen",
+    "alerts": "Alarme"
+  },
+  "tabs_label": {
+    "panels": "Panels"
+  },
+  "status": {
+    "connected": "Verbunden",
+    "disconnected": "Getrennt",
+    "connecting": "Verbinde…"
+  },
+  "panel_card": {
+    "relative_time": {
+      "just_now": "Gerade eben",
+      "minutes_ago": "vor {{min}} Min.",
+      "hours_ago": "vor {{hr}} Std.",
+      "updated": "Aktualisiert {{time}}"
+    },
+    "domains": {
+      "light": "Licht",
+      "switch": "Schalter",
+      "sensor": "Sensor",
+      "binary_sensor": "Binärsensor",
+      "climate": "Klimaanlage",
+      "cover": "Rolladen",
+      "media_player": "Mediaplayer",
+      "input_boolean": "Eingabe Boolean",
+      "automation": "Automation",
+      "fan": "Lüfter",
+      "lock": "Schloss",
+      "scene": "Szene",
+      "script": "Skript"
+    },
+    "tooltips": {
+      "history": "Verlauf",
+      "edit": "Label bearbeiten",
+      "remove": "Panel entfernen",
+      "turn_on": "Einschalten",
+      "turn_off": "Ausschalten"
+    },
+    "light": {
+      "brightness": "Helligkeit {{pct}}%",
+      "color_temp": "Farbtemperatur"
+    },
+    "climate": {
+      "current": "Aktuell:"
+    },
+    "media": {
+      "volume": "Lautstärke {{pct}}%",
+      "source": "Quelle"
+    },
+    "cover": {
+      "open": "Öffnen",
+      "stop": "Stopp",
+      "close": "Schließen",
+      "position": "Position {{pct}}%"
+    },
+    "script_scene": {
+      "run": "Ausführen",
+      "activate": "Aktivieren"
+    },
+    "pin": {
+      "confirm": "Bestätigen",
+      "lock_title": "Schloss {{name}} {{action}}",
+      "lock_action": "sperren",
+      "unlock_action": "entsperren",
+      "alarm_title": "Alarm {{action}}",
+      "alarm_arm": "scharf stellen",
+      "alarm_disarm": "deaktivieren"
+    },
+    "lock": {
+      "locked": "Gesperrt",
+      "unlocked": "Entsperrt",
+      "unknown": "Unbekannt",
+      "lock_btn": "Sperren",
+      "unlock_btn": "Entsperren"
+    },
+    "alarm": {
+      "disarmed": "Deaktiviert",
+      "armed_home": "Scharf (Zuhause)",
+      "armed_away": "Scharf (Abwesend)",
+      "armed_night": "Scharf (Nacht)",
+      "armed_vacation": "Scharf (Urlaub)",
+      "pending": "Ausstehend",
+      "triggered": "AUSGELÖST",
+      "arming": "Wird scharf...",
+      "action_home": "Zuhause",
+      "action_away": "Abwesend",
+      "action_night": "Nacht",
+      "action_disarm": "Deaktivieren"
+    }
+  }
+}

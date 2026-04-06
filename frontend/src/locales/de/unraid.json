@@ -1,0 +1,207 @@
+{
+  "title": "Unraid",
+  "admin_only": "Nur für Administratoren.",
+  "empty_entries": "Keine Einträge",
+  "ctab": {
+    "overview": "Übersicht",
+    "array": "HDD",
+    "docker": "Docker",
+    "vms": "VMs",
+    "shares": "Freigaben",
+    "notifications": "Benachrichtigungen",
+    "system": "System",
+    "ups": "UPS",
+    "logs": "Logs",
+    "plugins": "Plugins",
+    "apikeys": "API Keys"
+  },
+  "confirm": {
+    "title": "Bestätigen",
+    "ok": "Bestätigen",
+    "cancel": "Abbrechen"
+  },
+  "setup": {
+    "title": "Unraid verbinden",
+    "requires": "Erfordert Unraid 7.2 oder neuer.",
+    "api_key_step": "API Key erstellen",
+    "api_key_hint": "Name: z.B. \"HELDASH\" | Rolle: admin | Speichern → Key kopieren"
+  },
+  "instance": {
+    "add": "Instanz hinzufügen",
+    "manage": "Instanzen",
+    "no_instances": "Keine Unraid-Instanzen konfiguriert.",
+    "add_first": "Erste Instanz hinzufügen",
+    "test": "Testen",
+    "edit": "Bearbeiten",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "updated": "Instanz aktualisiert",
+    "disabled": "Deaktiviert",
+    "enabled_msg": "Aktiviert",
+    "delete_title": "Instanz entfernen",
+    "delete_msg": "Instanz entfernen? Alle gespeicherten Daten werden gelöscht.",
+    "deleted": "Instanz gelöscht",
+    "api_key_placeholder": "Neuer API Key (leer = unverändert)"
+  },
+  "array": {
+    "paused": "pausiert",
+    "running": "läuft…"
+  },
+  "disk": {
+    "name": "Name",
+    "status": "Status",
+    "type": "Typ",
+    "size": "Größe",
+    "used": "Belegt",
+    "free": "Frei",
+    "temp": "Temp",
+    "interface": "Schnittstelle"
+  },
+  "docker": {
+    "empty": "Keine Container gefunden",
+    "delete_title": "Container löschen",
+    "delete_msg": "Container \"{{name}}\" permanent löschen?",
+    "deleted": "{{name}} gelöscht"
+  },
+  "vm": {
+    "confirm_forcestop": "VM sofort beenden — Datenverlust möglich!",
+    "confirm_reset": "Hard Reset — Datenverlust möglich!",
+    "confirm_shutdown": "Ungespeicherte Daten in der VM können verloren gehen."
+  },
+  "notif": {
+    "unread": "Ungelesen",
+    "archive": "Archiv",
+    "archiving": "Wird archiviert…",
+    "mark_all_read": "Alle als gelesen markieren",
+    "close": "Schließen",
+    "mark_read": "Als gelesen markieren",
+    "delete_title": "Benachrichtigung löschen",
+    "delete_msg": "Benachrichtigung permanent löschen? Dies kann nicht rückgängig gemacht werden.",
+    "deleted": "Benachrichtigung gelöscht"
+  },
+  "system": {
+    "license": "Lizenz",
+    "registered_for": "Registriert für",
+    "license_type": "Lizenztyp",
+    "lic_status": "Status",
+    "lic_valid": "Aktiv",
+    "lic_invalid": "Ungültig",
+    "manufacturer": "Hersteller"
+  },
+  "ups": {
+    "device": "Gerät"
+  },
+  "logs": {
+    "modified": "Geändert",
+    "view": "Anzeigen"
+  },
+  "apikey": {
+    "new": "Neuer API Key",
+    "create": "Erstellen",
+    "created": "API Key erstellt",
+    "deleted": "API Key gelöscht",
+    "delete_title": "API Key löschen",
+    "delete_msg": "API Key \"{{name}}\" löschen?"
+  },
+  "actions": {
+    "start": "Starten",
+    "stop": "Stoppen",
+    "restart": "Neustarten",
+    "pause": "Pausieren",
+    "resume": "Fortsetzen",
+    "refresh": "Aktualisieren"
+  },
+  "status": {
+    "started": "Gestartet",
+    "stopped": "Gestoppt",
+    "paused": "Pausiert"
+  },
+  "uptime": {
+    "days": "T",
+    "hours": "Std",
+    "minutes": "Min"
+  },
+  "notifications": {
+    "no_notifications": "Keine Benachrichtigungen",
+    "no_unread": "Keine ungelesenen Benachrichtigungen",
+    "no_archive": "Kein Archiv vorhanden"
+  },
+  "overview": {
+    "server": "Server",
+    "mainboard": "Mainboard",
+    "array_label": "Array",
+    "notifications_label": "Benachrichtigungen",
+    "all_ok": "Alles OK",
+    "unread": "{{count}} ungelesen",
+    "uptime_label": "Uptime:",
+    "cores": "Kerne",
+    "threads": "Threads",
+    "swap": "Swap:"
+  },
+  "array_tab": {
+    "array_start": "Array starten",
+    "array_start_confirm": "Array starten?",
+    "array_stop": "Array stoppen",
+    "array_stop_confirm": "Alle laufenden Zugriffe werden unterbrochen.",
+    "parity_start": "Parity Check starten",
+    "parity_start_confirm": "Parity Check starten?",
+    "parity_auto_correct": "Fehler automatisch korrigieren",
+    "parity_pause": "Pausieren",
+    "parity_resume": "Fortsetzen",
+    "parity_cancel_btn": "Abbrechen",
+    "parity_cancel_confirm": "Parity Check abbrechen?",
+    "parity_paused_toast": "Parity pausiert",
+    "parity_resumed_toast": "Parity fortgesetzt",
+    "parity_check_label": "Parity Check",
+    "parity_speed": "Speed:",
+    "parity_errors": "Fehler:",
+    "parity_correcting": "Korrigierend",
+    "cache_pools": "Cache Pools",
+    "cache_pools_empty": "Keine Cache-Pools konfiguriert.",
+    "parity_history_show": "Parity-Historie anzeigen",
+    "parity_history_hide": "Parity-Historie ausblenden",
+    "parity_history_cols": ["Datum", "Dauer", "Speed", "Status", "Fehler"],
+    "parity_h_date": "Datum",
+    "parity_h_duration": "Dauer",
+    "parity_h_status": "Status",
+    "parity_h_errors": "Fehler",
+    "parity_history_empty": "Keine Parity-Historie vorhanden",
+    "physical_drives": "Physische Laufwerke",
+    "physical_drives_empty": "Keine physischen Laufwerke gefunden.",
+    "disk_parity_badge": "Parity",
+    "disk_data_badge": "Daten",
+    "disk_spinning": "Aktiv",
+    "disk_standby": "Standby"
+  },
+  "docker_tab": {
+    "filter_all": "Alle",
+    "update_all": "Alle aktualisieren",
+    "update_all_toast": "Alle Container werden aktualisiert"
+  },
+  "vms_tab": {
+    "empty": "Keine VMs konfiguriert auf diesem Server."
+  },
+  "shares_tab": {
+    "empty": "Keine Freigaben gefunden"
+  },
+  "system_tab": {
+    "hardware": "Hardware",
+    "users": "Benutzer",
+    "virtualized": "Virtualisiert",
+    "no_plugins": "Keine API-Plugins installiert"
+  },
+  "ups_tab": {
+    "no_ups": "Keine USV konfiguriert",
+    "no_ups_detail": "Es wurde keine unterbrechungsfreie Stromversorgung (USV) erkannt.",
+    "runtime": "Laufzeit:",
+    "health": "Zustand:",
+    "input_voltage": "Eingang:",
+    "output_voltage": "Ausgang:",
+    "config": "Konfiguration"
+  },
+  "apikey_tab": {
+    "remove": "Entfernen",
+    "cancel": "Abbrechen",
+    "roles": "Rollen"
+  }
+}

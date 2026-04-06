@@ -1,0 +1,30 @@
+{
+  "title": "About",
+  "version": "Version",
+  "intro": "Persönliches Homelab-Dashboard mit Glass-Morphism Design. Verwalte Services, Docker-Container, Media-Automation, Home Assistant und mehr — alles in einer Oberfläche. Selbst-gehostet auf Unraid als einzelner Docker-Container.",
+  "install": {
+    "title": "Schnellinstallation",
+    "step1": "Über Unraid Community Applications installieren oder Docker-Image direkt starten",
+    "step2": "Dashboard aufrufen: http://<server-ip>:8282",
+    "step3": "Admin-Konto einrichten (wird beim ersten Start abgefragt)",
+    "step4": "Fertig — Services, Widgets und Integrationen einrichten"
+  },
+  "links": {
+    "title": "Links & Dokumentation",
+    "docs": "📖 Vollständige Dokumentation auf GitHub (DE/EN)"
+  },
+  "code": {
+    "copy": "Kopieren",
+    "copied": "Kopiert!"
+  },
+  "changelog": {
+    "title": "Changelog",
+    "subtitle": "HELDASH Release Notes",
+    "github": "GitHub",
+    "loading": "Lade…",
+    "load_error": "Releases konnten nicht geladen werden.",
+    "no_releases": "Keine Releases gefunden",
+    "no_notes": "Keine Release Notes verfügbar.",
+    "latest": "Neueste"
+  }
+}

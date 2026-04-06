@@ -1,0 +1,92 @@
+{
+  "title": "Network",
+  "device": {
+    "add": "Add device",
+    "edit": "Edit device",
+    "name": "Name *",
+    "name_placeholder": "My Server",
+    "ip": "IP Address *",
+    "ip_placeholder": "192.168.1.100",
+    "icon_library": "Icon (Library)",
+    "icon_emoji": "Emoji (Fallback)",
+    "group": "Group",
+    "group_placeholder": "e.g. Server, IoT, Network",
+    "subnet": "Subnet (for scanner pre-fill)",
+    "subnet_placeholder": "e.g. 192.168.1.0/24",
+    "check_method": "Check method",
+    "check_standard": "Standard (80/443/22/8080)",
+    "check_tcp": "TCP Port",
+    "port_placeholder": "Port (e.g. 8080)",
+    "wol": "Enable Wake-on-LAN",
+    "mac": "MAC Address *",
+    "mac_placeholder": "AA:BB:CC:DD:EE:FF",
+    "mac_format": "Format: AA:BB:CC:DD:EE:FF",
+    "broadcast": "Broadcast Address",
+    "broadcast_placeholder": "e.g. 192.168.1.255",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "name_ip_required": "Name and IP address are required",
+    "save_error": "Save failed"
+  },
+  "scanner": {
+    "title": "Scan Network",
+    "subnet_placeholder": "e.g. 192.168.1.0/24 or 10.10.0.0/20",
+    "scan": "Scan",
+    "scanning": "Scanning...",
+    "hint": "Supports /20–/32 (max 4096 hosts)",
+    "duration": "Scan takes approx. 20–30 seconds",
+    "found_single": "{{count}} device found",
+    "found_plural": "{{count}} devices found",
+    "existing": "Existing",
+    "added": "Added",
+    "add": "Add",
+    "finish": "Finish scan",
+    "enter_subnet": "Enter subnet",
+    "invalid_format": "Format: 192.168.1.0/24 or 10.10.0.0/20 (max /20)",
+    "scan_failed": "Scan failed"
+  },
+  "history": {
+    "title": "History"
+  },
+  "status": {
+    "online": "Online",
+    "offline": "Offline",
+    "checking": "Checking…"
+  },
+  "card": {
+    "never_checked": "Never checked",
+    "just_now": "Just now",
+    "minutes_ago": "{{count}} min. ago",
+    "hours_ago": "{{count}} hr. ago",
+    "days_ago": "{{count}} days ago",
+    "wol_title": "Send Wake-on-LAN",
+    "edit_title": "Edit",
+    "delete_title": "Delete",
+    "last_checks": "Last checks",
+    "no_history": "No history available"
+  },
+  "buttons": {
+    "scan_network": "Scan network"
+  },
+  "stats": {
+    "online": "{{count}} Online",
+    "offline": "{{count}} Offline",
+    "total": "{{count}} Total"
+  },
+  "empty": {
+    "title": "No devices yet",
+    "description": "Add network devices or scan your subnet",
+    "add_first": "Add first device"
+  },
+  "messages": {
+    "load_error": "Error loading",
+    "device_removed": "{{name}} removed",
+    "error": "Error",
+    "wol_sent": "Magic Packet sent to {{name}}",
+    "wol_failed": "WoL failed"
+  },
+  "labels": {
+    "ungrouped": "Ungrouped"
+  }
+}
