@@ -1,5 +1,4 @@
 import { Suspense, lazy } from 'react'
-import { ChangelogModal } from '../components/ChangelogModal'
 import { ServiceModal } from '../components/ServiceModal'
 import type { Service } from '../types'
 
@@ -12,7 +11,6 @@ const HaPage = lazy(() => import('../pages/HaPage').then(m => ({ default: m.HaPa
 const LogbuchPage = lazy(() => import('../pages/LogbuchPage').then(m => ({ default: m.LogbuchPage })))
 const NetworkPage = lazy(() => import('../pages/NetworkPage').then(m => ({ default: m.NetworkPage })))
 const BackupPage = lazy(() => import('../pages/BackupPage').then(m => ({ default: m.BackupPage })))
-const AboutPage = lazy(() => import('../pages/AboutPage').then(m => ({ default: m.AboutPage })))
 const UnraidPage = lazy(() => import('../pages/UnraidPage').then(m => ({ default: m.UnraidPage })))
 const BookmarksPage = lazy(() => import('../pages/BookmarksPage').then(m => ({ default: m.BookmarksPage })))
 const InstancesPage = lazy(() => import('../pages/InstancesPage').then(m => ({ default: m.InstancesPage })))
@@ -28,7 +26,6 @@ interface Props {
   setShowAddWidget: (v: boolean) => void
   showAddHaPanel: boolean
   setShowAddHaPanel: (v: boolean) => void
-  showChangelog: boolean
   setShowChangelog: (v: boolean) => void
 }
 
@@ -49,7 +46,6 @@ export function AppContent(props: Props) {
     setEditService,
     showAddHaPanel,
     setShowAddHaPanel,
-    showChangelog,
     setShowChangelog,
   } = props
 
@@ -69,7 +65,6 @@ export function AppContent(props: Props) {
         {page === 'logbuch' && <LogbuchPage />}
         {page === 'network' && <NetworkPage />}
         {page === 'backup' && <BackupPage />}
-        {page === 'about' && <AboutPage onOpenChangelog={() => setShowChangelog(true)} />}
         {page === 'unraid' && <UnraidPage />}
         {page === 'bookmarks' && <BookmarksPage />}
         {page === 'instances' && <InstancesPage />}
@@ -84,9 +79,6 @@ export function AppContent(props: Props) {
         />
       )}
 
-      {showChangelog && (
-        <ChangelogModal onClose={() => setShowChangelog(false)} />
-      )}
     </>
   )
 }

@@ -10,7 +10,6 @@ import deDocker from './locales/de/docker.json'
 import deBackup from './locales/de/backup.json'
 import deNetwork from './locales/de/network.json'
 import deLogbuch from './locales/de/logbuch.json'
-import deAbout from './locales/de/about.json'
 import deBookmarks from './locales/de/bookmarks.json'
 import deServices from './locales/de/services.json'
 import deWidgets from './locales/de/widgets.json'
@@ -33,7 +32,6 @@ i18n.use(initReactI18next).init({
       backup: deBackup,
       network: deNetwork,
       logbuch: deLogbuch,
-      about: deAbout,
       bookmarks: deBookmarks,
       services: deServices,
       widgets: deWidgets,

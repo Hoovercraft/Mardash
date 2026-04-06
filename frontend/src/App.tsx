@@ -41,7 +41,6 @@ export default function App() {
   const [checking, setChecking] = useState(false)
   const [showAddWidget, setShowAddWidget] = useState(false)
   const [showAddHaPanel, setShowAddHaPanel] = useState(false)
-  const [showChangelog, setShowChangelog] = useState(false)
 
   const handleCheckAll = async () => {
     setChecking(true)
@@ -103,8 +102,6 @@ export default function App() {
                 setShowAddWidget={setShowAddWidget}
                 showAddHaPanel={showAddHaPanel}
                 setShowAddHaPanel={setShowAddHaPanel}
-                showChangelog={showChangelog}
-                setShowChangelog={setShowChangelog}
               />
             </AppShell>
               </>
