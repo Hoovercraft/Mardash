@@ -9,7 +9,7 @@ import { useStore } from '../store/useStore'
 import { useHaStore } from '../store/useHaStore'
 import { useInstanceStore } from '../store/useInstanceStore'
 import { Trash2, Pencil, X, Check, Plus, Minus, LayoutDashboard, Shield, ShieldOff, Container, Play, Square, RotateCcw, Zap, Sun, ZapOff, Flame, BatteryCharging, Calendar, Film, Tv, Cloud, LayoutGrid } from 'lucide-react'
-import type { Widget, ServerStatusConfig, AdGuardHomeConfig, CustomButtonConfig, HomeAssistantConfig, NginxPMConfig, HomeAssistantEnergyConfig, ServerStats, AdGuardStats, HaEntityState, NpmStats, EnergyData, CalendarWidgetConfig, CalendarEntry, WeatherWidgetConfig, WeatherStats } from '../types'
+import type { Widget, ServerStatusConfig, AdGuardHomeConfig, CustomButtonConfig, HomeAssistantConfig, NginxPMConfig, HomeAssistantEnergyConfig, ServerStats, AdGuardStats, HaEntityState, NpmStats, EnergyData, CalendarWidgetConfig, CalendarEntry, WeatherWidgetConfig, WeatherStats, AppdataBackupWidgetStats } from '../types'
 import { normalizeUrl, containerCounts } from '../utils'
 import { getIconUrl } from '../api'
 import { HelbackupWidget } from '../components/HelbackupWidget'
@@ -1211,6 +1211,24 @@ function WidgetCard({
         )
       ) : widget.type === 'helbackup' ? (
         <HelbackupWidget />
+      ) : widget.type === 'appdata_backup' ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Appdata-Backup</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Nur Ampelstatus</div>
+          </div>
+          <span
+            title="Noch nicht angebunden"
+            style={{
+              width: 14,
+              height: 14,
+              borderRadius: '50%',
+              background: '#f59e0b',
+              boxShadow: '0 0 8px rgba(245,158,11,0.45)',
+              flexShrink: 0,
+            }}
+          />
+        </div>
       ) : (
         // adguard_home
         s ? (

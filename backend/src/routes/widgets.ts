@@ -599,7 +599,7 @@ export async function widgetsRoutes(app: FastifyInstance) {
       const lon = typeof config.lon === 'number' ? config.lon : parseFloat(String(config.lon ?? ''))
       if (isNaN(lat) || isNaN(lon)) return { error: 'Invalid coordinates configured' }
       try {
-        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&timezone=auto`
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&minutely_15=precipitation&forecast_minutely_15=8&timezone=auto`
         const res = await fetch(weatherUrl)
         if (!res.ok) return { error: `Weather API error ${res.status}` }
         const data = await res.json() as {
@@ -613,7 +613,20 @@ export async function widgetsRoutes(app: FastifyInstance) {
             time: string
           }
           current_units: { temperature_2m: string }
+          minutely_15?: {
+            time: string[]
+            precipitation: number[]
+          }
         }
+
+        let rain_text = 'Kein Regen in Sicht'
+        const upcoming = data.minutely_15?.precipitation ?? []
+        const idx = upcoming.findIndex(v => typeof v === 'number' && v > 0.1)
+        if (idx >= 0) {
+          const minutes = idx * 15
+          rain_text = minutes <= 0 ? 'Regen jetzt' : `Regen in ${minutes} Min`
+        }
+
         return {
           temperature: data.current.temperature_2m,
           apparent_temperature: data.current.apparent_temperature,
@@ -623,6 +636,7 @@ export async function widgetsRoutes(app: FastifyInstance) {
           wind_speed: data.current.wind_speed_10m,
           unit: data.current_units.temperature_2m,
           timestamp: data.current.time,
+          rain_text,
         }
       } catch (err) {
         return { error: (err as Error).message }

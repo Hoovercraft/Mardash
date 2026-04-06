@@ -1,8 +1,7 @@
 import React, { useEffect, useLayoutEffect, useState } from 'react'
 import {
   LayoutDashboard, Settings, AppWindow, BarChart2, Container, Home,
-  ChevronLeft, ChevronRight, ScrollText, Network, HardDrive, Server, Bookmark, Link2, SlidersHorizontal,
-} from 'lucide-react'
+  ChevronLeft, ChevronRight, ScrollText, Network, HardDrive, Server, Bookmark, Link2, SlidersHorizontal} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useStore } from '../store/useStore'
 import { useWidgetStore } from '../store/useWidgetStore'
@@ -92,8 +91,6 @@ export function Sidebar({ page, onNavigate }: Props) {
         <NavItem icon={<Home size={16} />} label={t('nav.home_assistant')} active={page === 'home_assistant'} onClick={() => onNavigate('home_assistant')} collapsed={collapsed} />
         <NavItem icon={<Server size={16} />} label={t('nav.unraid')} active={page === 'unraid'} onClick={() => onNavigate('unraid')} collapsed={collapsed} />
         <NavItem icon={<Network size={16} />} label={t('nav.network')} active={page === 'network'} onClick={() => onNavigate('network')} collapsed={collapsed} />
-        <NavItem icon={<HardDrive size={16} />} label={t('nav.backup')} active={page === 'backup'} onClick={() => onNavigate('backup')} collapsed={collapsed} />
-        <NavItem icon={<ScrollText size={16} />} label={t('nav.logbuch')} active={page === 'logbuch'} onClick={() => onNavigate('logbuch')} collapsed={collapsed} />
 
         {!collapsed && sidebarWidgets.length > 0 && (
           <div className="sidebar-widgets-section">
@@ -140,8 +137,7 @@ function NavItem({ icon, label, active, onClick, collapsed }: {
         textAlign: 'left',
         background: 'none',
         fontFamily: 'var(--font-sans)',
-        justifyContent: collapsed ? 'center' : undefined,
-      }}
+        justifyContent: collapsed ? 'center' : undefined}}
     >
       {icon}
       {!collapsed && <span>{label}</span>}
@@ -156,8 +152,7 @@ function BottomNavBar({ page, onNavigate }: { page: string; onNavigate: (p: stri
     { icon: <LayoutDashboard size={20} />, label: t('nav.dashboard'), target: 'dashboard' },
     { icon: <SlidersHorizontal size={20} />, label: 'Control', target: 'control_center' },
     { icon: <Container size={20} />, label: t('nav.docker'), target: 'docker' },
-    { icon: <Home size={20} />, label: t('nav.home_assistant'), target: 'home_assistant' },
-  ]
+    { icon: <Home size={20} />, label: t('nav.home_assistant'), target: 'home_assistant' }]
 
   return (
     <nav className="bottom-nav" aria-label="Mobile navigation">

@@ -1,4 +1,4 @@
-import type { Service, Group, Settings, AuthUser, UserRecord, UserGroup, DashboardGroup, DashboardResponse, Widget, WidgetStats, DockerContainer, ContainerStats, Background, HaInstance, HaPanel, HaEntityFull, HaArea, EnergyData, CalendarEntry, HaFloorplan, HaFloorplanEntity, HaAlert, HaHistoryEntry, NetworkDevice, NetworkDeviceHistory, ScanResult, BackupSource, BackupStatusResult, ResourceSnapshot, ChangelogRelease, Instance, InstanceType, HelbackupWidgetStatus, HelbackupJob, HelbackupBackup, HelbackupHistoryEntry, HelbackupLogEvent } from './types'
+import type { Service, Group, Settings, AuthUser, UserRecord, UserGroup, DashboardGroup, DashboardResponse, Widget, WidgetStats, DockerContainer, ContainerStats, Background, HaInstance, HaPanel, HaEntityFull, HaArea, EnergyData, CalendarEntry, HaFloorplan, HaFloorplanEntity, HaAlert, HaHistoryEntry, NetworkDevice, NetworkDeviceHistory, ScanResult, BackupSource, BackupStatusResult, ResourceSnapshot, ChangelogRelease, Instance, InstanceType, HelbackupWidgetStatus, HelbackupJob, HelbackupBackup, HelbackupHistoryEntry, HelbackupLogEvent, AppdataBackupWidgetStats, PollenTopbarStats } from './types'
 import type { UnraidInstance, UnraidInfo, UnraidArray, UnraidParityHistory, UnraidContainer, UnraidVm, UnraidShare, UnraidUser, UnraidNotifications, UnraidConfig, UnraidPhysicalDisk, UnraidService, UnraidFlash, UnraidServer, UnraidOwner, UnraidMe, UnraidNetworkAccess, UnraidConnect, UnraidUpsDevice, UnraidUpsConfig, UnraidLogFile, UnraidPlugin, UnraidApiKey, UnraidDockerNetwork, UnraidMetricsDetailed } from './types/unraid'
 
 const BASE = '/api'
@@ -8,8 +8,7 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> {
     cache: 'no-store',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     credentials: 'include',
-    ...options,
-  })
+    ...options})
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Unknown error' }))
     throw new Error(err.detail ?? err.error ?? `HTTP ${res.status}`)
@@ -30,26 +29,22 @@ export const api = {
     uploadIcon: (id: string, data: string, contentType: string) =>
       req<{ icon_url: string }>(`/services/${id}/icon`, { method: 'POST', body: JSON.stringify({ data, content_type: contentType }) }),
     export: () => fetch('/api/services/export', { credentials: 'include' }).then(r => r.blob()),
-    import: (services: Record<string, unknown>[]) => req<{ imported: number; skipped: number; total: number; errors?: string[] }>('/services/import', { method: 'POST', body: JSON.stringify({ services }) }),
-  },
+    import: (services: Record<string, unknown>[]) => req<{ imported: number; skipped: number; total: number; errors?: string[] }>('/services/import', { method: 'POST', body: JSON.stringify({ services }) })},
 
   icons: {
     search: (q: string) => req<{ icons: Array<{ name: string; base: string; preview_url: string; categories: string[] }> }>(`/icons/search?q=${encodeURIComponent(q)}`),
     download: (name: string, format?: string) => req<{ id: string; name: string; mime_type: string }>('/icons/download', { method: 'POST', body: JSON.stringify({ name, format }) }),
-    upload: (data: string, contentType: string, name?: string) => req<{ id: string; name: string; mime_type: string }>('/icons/upload', { method: 'POST', body: JSON.stringify({ data, content_type: contentType, name }) }),
-  },
+    upload: (data: string, contentType: string, name?: string) => req<{ id: string; name: string; mime_type: string }>('/icons/upload', { method: 'POST', body: JSON.stringify({ data, content_type: contentType, name }) })},
 
   groups: {
     list: () => req<Group[]>('/groups'),
     create: (data: Partial<Group>) => req<Group>('/groups', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Group>) => req<Group>(`/groups/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-    delete: (id: string) => req<void>(`/groups/${id}`, { method: 'DELETE' }),
-  },
+    delete: (id: string) => req<void>(`/groups/${id}`, { method: 'DELETE' })},
 
   settings: {
     get: () => req<Settings>('/settings'),
-    update: (data: Partial<Settings>) => req<Settings>('/settings', { method: 'PATCH', body: JSON.stringify(data) }),
-  },
+    update: (data: Partial<Settings>) => req<Settings>('/settings', { method: 'PATCH', body: JSON.stringify(data) })},
 
   auth: {
     status: () => req<{ needsSetup: boolean; user: AuthUser | null }>('/auth/status'),
@@ -58,12 +53,46 @@ export const api = {
     login: (username: string, password: string, rememberMe?: boolean) =>
       req<AuthUser>('/auth/login', { method: 'POST', body: JSON.stringify({ username, password, remember_me: rememberMe }) }),
     logout: () => req<{ ok: boolean }>('/auth/logout', { method: 'POST', body: JSON.stringify({}) }),
-    me: () => req<AuthUser>('/auth/me'),
-  },
+    me: () => req<AuthUser>('/auth/me')},
 
+  appdataBackup: {
+    status: async (): Promise<AppdataBackupWidgetStats> => {
+      const data = await req<{ sources: BackupStatusResult[] }>('/backup/status')
+      const source = data.sources.find(s => s.type === 'ca_backup') ?? null
+      if (!source) {
+        return {
+          status: 'warning',
+          label: 'Nicht eingerichtet',
+          sourceFound: false,
+          lastRun: null,
+          error: null}
+      }
+      if (source.error || source.success === false) {
+        return {
+          status: 'error',
+          label: source.error ? 'Fehler' : 'Fehlgeschlagen',
+          sourceFound: true,
+          lastRun: source.lastRun ?? null,
+          error: source.error ?? null}
+      }
+      if (source.success === true) {
+        return {
+          status: 'ok',
+          label: 'OK',
+          sourceFound: true,
+          lastRun: source.lastRun ?? null,
+          error: null}
+      }
+      return {
+        status: 'warning',
+        label: 'Unklar',
+        sourceFound: true,
+        lastRun: source.lastRun ?? null,
+        error: null}
+    }},
 
-
-
+  pollen: {
+    status: () => req<PollenTopbarStats>('/pollen/topbar')},
 
   widgets: {
     list: () => req<Widget[]>('/widgets'),
@@ -75,8 +104,7 @@ export const api = {
     stats: (id: string) => req<WidgetStats>(`/widgets/${id}/stats`),
     setAdGuardProtection: (id: string, enabled: boolean) =>
       req<{ ok: boolean }>(`/widgets/${id}/adguard/protection`, {
-        method: 'POST', body: JSON.stringify({ enabled }),
-      }),
+        method: 'POST', body: JSON.stringify({ enabled })}),
     triggerButton: (id: string, buttonId: string) =>
       req<{ ok: boolean; status: number }>(`/widgets/${id}/trigger`, { method: 'POST', body: JSON.stringify({ button_id: buttonId }) }),
     haToggle: (id: string, entityId: string, currentState: string) =>
@@ -84,8 +112,7 @@ export const api = {
     setPiholeProtection: (id: string, enabled: boolean) =>
       req<{ ok: boolean }>(`/widgets/${id}/pihole/protection`, { method: 'POST', body: JSON.stringify({ enabled }) }),
     uploadIcon: (id: string, data: string, contentType: string) =>
-      req<{ icon_url: string }>(`/widgets/${id}/icon`, { method: 'POST', body: JSON.stringify({ data, content_type: contentType }) }),
-  },
+      req<{ icon_url: string }>(`/widgets/${id}/icon`, { method: 'POST', body: JSON.stringify({ data, content_type: contentType }) })},
 
   dashboard: {
     list: () => req<DashboardResponse>('/dashboard'),
@@ -108,16 +135,14 @@ export const api = {
     removeByRef: (type: string, ref_id: string) =>
       req<void>('/dashboard/items/by-ref', { method: 'DELETE', body: JSON.stringify({ type, ref_id }) }),
     reorder: (ids: string[]) =>
-      req<{ ok: boolean }>('/dashboard/reorder', { method: 'PATCH', body: JSON.stringify({ ids }) }),
-  },
+      req<{ ok: boolean }>('/dashboard/reorder', { method: 'PATCH', body: JSON.stringify({ ids }) })},
 
   docker: {
     containers: () => req<DockerContainer[]>('/docker/containers'),
     stats: (id: string) => req<ContainerStats>(`/docker/containers/${id}/stats`),
     allStats: () => req<Record<string, ContainerStats>>('/docker/stats'),
     control: (id: string, action: 'start' | 'stop' | 'restart') =>
-      req<{ ok: boolean }>(`/docker/containers/${id}/${action}`, { method: 'POST', body: JSON.stringify({}) }),
-  },
+      req<{ ok: boolean }>(`/docker/containers/${id}/${action}`, { method: 'POST', body: JSON.stringify({}) })},
 
   backgrounds: {
     list: () => req<Background[]>('/backgrounds'),
@@ -128,9 +153,7 @@ export const api = {
     setGroupBackground: (groupId: string, background_id: string | null) =>
       req<{ ok: boolean }>(`/user-groups/${groupId}/background`, {
         method: 'PUT',
-        body: JSON.stringify({ background_id }),
-      }),
-  },
+        body: JSON.stringify({ background_id })})},
 
   ha: {
     instances: {
@@ -146,8 +169,7 @@ export const api = {
       areas: (id: string) => req<HaArea[]>(`/ha/instances/${id}/areas`),
       entityArea: (id: string, entityId: string) => req<{ area_id: string | null }>(`/ha/instances/${id}/entity-area?entity_id=${encodeURIComponent(entityId)}`),
       call: (id: string, domain: string, service: string, entity_id: string, service_data?: Record<string, unknown>) =>
-        req<{ ok: boolean }>(`/ha/instances/${id}/call`, { method: 'POST', body: JSON.stringify({ domain, service, entity_id, service_data }) }),
-    },
+        req<{ ok: boolean }>(`/ha/instances/${id}/call`, { method: 'POST', body: JSON.stringify({ domain, service, entity_id, service_data }) })},
     energy: (instanceId: string, period: string) =>
       req<EnergyData>(`/ha/instances/${instanceId}/energy?period=${period}`),
     panels: {
@@ -157,16 +179,14 @@ export const api = {
       update: (id: string, data: { label?: string; panel_type?: string; area_id?: string | null }) =>
         req<HaPanel>(`/ha/panels/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
       delete: (id: string) => req<void>(`/ha/panels/${id}`, { method: 'DELETE' }),
-      reorder: (ids: string[]) => req<{ ok: boolean }>('/ha/panels/reorder', { method: 'PATCH', body: JSON.stringify({ ids }) }),
-    },
+      reorder: (ids: string[]) => req<{ ok: boolean }>('/ha/panels/reorder', { method: 'PATCH', body: JSON.stringify({ ids }) })},
     alerts: {
       list: () => req<HaAlert[]>('/ha/alerts'),
       create: (data: { instance_id: string; entity_id: string; condition_type: string; condition_value?: string | null; message: string }) =>
         req<HaAlert>('/ha/alerts', { method: 'POST', body: JSON.stringify(data) }),
       update: (id: string, data: { condition_type?: string; condition_value?: string | null; message?: string; enabled?: boolean }) =>
         req<HaAlert>(`/ha/alerts/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-      delete: (id: string) => req<void>(`/ha/alerts/${id}`, { method: 'DELETE' }),
-    },
+      delete: (id: string) => req<void>(`/ha/alerts/${id}`, { method: 'DELETE' })},
     history: (instanceId: string, entityId: string, hours: number) =>
       req<HaHistoryEntry[]>(`/ha/instances/${instanceId}/history?entity_id=${encodeURIComponent(entityId)}&hours=${hours}`),
     scenes: (instanceId: string) =>
@@ -197,50 +217,28 @@ export const api = {
         update: (id: string, entityId: string, data: { pos_x?: number; pos_y?: number; display_size?: string; show_label?: boolean }) =>
           req<HaFloorplanEntity>(`/ha/floorplans/${id}/entities/${entityId}`, { method: 'PATCH', body: JSON.stringify(data) }),
         remove: (id: string, entityId: string) =>
-          req<void>(`/ha/floorplans/${id}/entities/${entityId}`, { method: 'DELETE' }),
-      },
-    },
-  },
-
+          req<void>(`/ha/floorplans/${id}/entities/${entityId}`, { method: 'DELETE' })}}},
 
   activity: {
     list: (category?: string) => {
       const url = category && category !== 'all' ? `/activity?category=${encodeURIComponent(category)}` : '/activity'
       return req<{ entries: { id: string; created_at: string; category: string; message: string; severity: string; meta: string | null }[] }>(url)
-    },
-  },
+    }},
 
   admin: {
   },
 
   services_extra: {
-    healthHistory: (id: string) => req<{ history: { hour: string; uptime: number }[]; uptimePercent7d: number | null }>(`/services/${id}/health-history`),
-  },
-
-  logbuch: {
-    healthScore: () => req<{
-      score: number
-      breakdown: {
-        services: { online: number; total: number; points: number }
-        docker: { running: number; total: number; points: number; available: boolean }
-        ha: { reachable: number; total: number; points: number }
-      }
-    }>('/logbuch/health-score'),
-    calendar: () => req<{ days: { date: string; count: number; maxSeverity: string }[] }>('/logbuch/calendar'),
-    anomalies: () => req<{ anomalies: { serviceId: string; serviceName: string | null; offlineCount: number }[] }>('/logbuch/anomalies'),
-  },
-
+    healthHistory: (id: string) => req<{ history: { hour: string; uptime: number }[]; uptimePercent7d: number | null }>(`/services/${id}/health-history`)},
   network: {
     devices: {
       list: () => req<NetworkDevice[]>('/network/devices'),
       create: (data: Partial<NetworkDevice>) => req<NetworkDevice>('/network/devices', { method: 'POST', body: JSON.stringify(data) }),
       update: (id: string, data: Partial<NetworkDevice>) => req<NetworkDevice>(`/network/devices/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-      delete: (id: string) => req<void>(`/network/devices/${id}`, { method: 'DELETE' }),
-    },
+      delete: (id: string) => req<void>(`/network/devices/${id}`, { method: 'DELETE' })},
     wol: (id: string) => req<{ ok: boolean; error?: string }>(`/network/devices/${id}/wol`, { method: 'POST', body: JSON.stringify({}) }),
     scan: (subnet: string) => req<ScanResult[]>(`/network/scan?subnet=${encodeURIComponent(subnet)}`),
-    history: (id: string) => req<NetworkDeviceHistory[]>(`/network/devices/${id}/history`),
-  },
+    history: (id: string) => req<NetworkDeviceHistory[]>(`/network/devices/${id}/history`)},
 
   backup: {
     sources: {
@@ -249,19 +247,15 @@ export const api = {
         req<BackupSource>('/backup/sources', { method: 'POST', body: JSON.stringify(data) }),
       update: (id: string, data: Partial<BackupSource>) =>
         req<BackupSource>(`/backup/sources/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-      delete: (id: string) => req<void>(`/backup/sources/${id}`, { method: 'DELETE' }),
-    },
+      delete: (id: string) => req<void>(`/backup/sources/${id}`, { method: 'DELETE' })},
     status: () => req<{ sources: BackupStatusResult[] }>('/backup/status'),
-    dockerExport: () => fetch('/api/backup/docker/export', { credentials: 'include' }).then(r => r.blob()),
-  },
+    dockerExport: () => fetch('/api/backup/docker/export', { credentials: 'include' }).then(r => r.blob())},
 
   resources: {
-    history: (range?: '1h' | '24h' | '7d') => req<ResourceSnapshot[]>(`/resources/history${range ? `?range=${range}` : ''}`),
-  },
+    history: (range?: '1h' | '24h' | '7d') => req<ResourceSnapshot[]>(`/resources/history${range ? `?range=${range}` : ''}`)},
 
   changelog: {
-    list: () => req<ChangelogRelease[]>('/changelog'),
-  },
+    list: () => req<ChangelogRelease[]>('/changelog')},
 
   health: () => req<{ status: string; version: string; uptime: number }>('/health'),
   serverTime: () => req<{ iso: string }>('/time'),
@@ -273,8 +267,7 @@ export const api = {
       update:  (id: string, b: object)                             => req<UnraidInstance>(`/unraid/instances/${id}`, { method: 'PATCH', body: JSON.stringify(b) }),
       delete:  (id: string)                                        => req<void>(`/unraid/instances/${id}`, { method: 'DELETE' }),
       reorder: (ids: string[])                                     => req<{ ok: boolean }>('/unraid/instances/reorder', { method: 'POST', body: JSON.stringify({ ids }) }),
-      test:    (url: string, api_key: string)                      => req<{ ok: boolean }>('/unraid/test', { method: 'POST', body: JSON.stringify({ url, api_key }) }),
-    },
+      test:    (url: string, api_key: string)                      => req<{ ok: boolean }>('/unraid/test', { method: 'POST', body: JSON.stringify({ url, api_key }) })},
     ping:                (id: string)                                                                   => req<{ online: boolean }>(`/unraid/${id}/ping`),
     info:                (id: string)                                                                   => req<UnraidInfo>(`/unraid/${id}/info`),
     array:               (id: string)                                                                   => req<UnraidArray>(`/unraid/${id}/array`),
@@ -323,8 +316,7 @@ export const api = {
     removeDockerContainer: (id: string, containerId: string, withImage?: boolean) => req<{ ok: boolean }>(`/unraid/${id}/docker/${encodeURIComponent(containerId)}${withImage ? '?withImage=true' : ''}`, { method: 'DELETE' }),
     createNotification:    (id: string, data: object)                     => req<unknown>(`/unraid/${id}/notifications`, { method: 'POST', body: JSON.stringify(data) }),
     deleteNotificationPerm:(id: string, notifId: string, type: string)    => req<{ ok: boolean }>(`/unraid/${id}/notifications/${encodeURIComponent(notifId)}?type=${type}`, { method: 'DELETE' }),
-    metrics:               (id: string)                                    => req<{ metrics?: UnraidMetricsDetailed }>(`/unraid/${id}/metrics`),
-  },
+    metrics:               (id: string)                                    => req<{ metrics?: UnraidMetricsDetailed }>(`/unraid/${id}/metrics`)},
 
   bookmarks: {
     list: () => req<import('./types').Bookmark[]>('/bookmarks'),
@@ -343,8 +335,7 @@ export const api = {
       return res.blob()
     },
     import: (bookmarks: Array<{ name: string; url: string; description?: string }>) =>
-      req<{ imported: number; skipped: number; errors: string[] }>('/bookmarks/import', { method: 'POST', body: JSON.stringify({ bookmarks }) }),
-  },
+      req<{ imported: number; skipped: number; errors: string[] }>('/bookmarks/import', { method: 'POST', body: JSON.stringify({ bookmarks }) })},
 
   instances: {
     list: () => req<Instance[]>('/instances'),
@@ -354,8 +345,7 @@ export const api = {
       req<Instance>(`/instances/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     delete: (id: string) => req<void>(`/instances/${id}`, { method: 'DELETE' }),
     test: (id: string) => req<{ ok: boolean; error?: string }>(`/instances/${id}/test`, { method: 'POST', body: JSON.stringify({}) }),
-    reorder: (ids: string[]) => req<{ ok: boolean }>('/instances/reorder', { method: 'POST', body: JSON.stringify({ ids }) }),
-  },
+    reorder: (ids: string[]) => req<{ ok: boolean }>('/instances/reorder', { method: 'POST', body: JSON.stringify({ ids }) })},
 
   helbackup: {
     health: () => req<{ ok: boolean }>('/helbackup/health'),
@@ -371,9 +361,7 @@ export const api = {
       return req<{ history: HelbackupHistoryEntry[]; pagination: { total: number; limit: number; offset: number } }>(`/helbackup/history${qs ? `?${qs}` : ''}`)
     },
     streamToken: (runId: string) => req<{ sseToken: string }>(`/helbackup/logs/${runId}/stream-token`, { method: 'POST', body: JSON.stringify({}) }),
-    triggerJob: (jobId: string) => req<{ triggered: boolean; jobId: string; runId: string; message: string }>(`/helbackup/jobs/${jobId}/trigger`, { method: 'POST', body: JSON.stringify({}) }),
-  },
-}
+    triggerJob: (jobId: string) => req<{ triggered: boolean; jobId: string; runId: string; message: string }>(`/helbackup/jobs/${jobId}/trigger`, { method: 'POST', body: JSON.stringify({}) })}}
 
 export function getIconUrl(entity: {
   icon_id?: string | null

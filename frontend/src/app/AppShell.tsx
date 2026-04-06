@@ -19,14 +19,14 @@ export function AppShell({
   onAddService,
   onAddWidget,
   onCheckAll,
-  checking,
-}: Props) {
+  checking}: Props) {
   return (
     <div className="app-layout">
       <Sidebar page={page} onNavigate={setPage} />
       <div className="main-area">
         <Topbar
           page={page}
+          onNavigate={setPage}
           onAddService={onAddService}
           onAddWidget={onAddWidget}
           onCheckAll={onCheckAll}

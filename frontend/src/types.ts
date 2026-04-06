@@ -152,6 +152,7 @@ export interface WeatherWidgetConfig {
   lat: number
   lon: number
   location_name?: string
+  city_name?: string
 }
 
 export interface WeatherStats {
@@ -163,6 +164,19 @@ export interface WeatherStats {
   wind_speed: number
   unit: string
   timestamp: string
+  rain_text?: string
+  error?: string
+}
+
+
+export interface PollenTopbarStats {
+  hasel: number | null
+  birke: number | null
+  graeser: number | null
+  level: 'low' | 'medium' | 'high' | 'unknown'
+  label: string
+  source_region: string | null
+  updated_at: string | null
   error?: string
 }
 
@@ -212,7 +226,7 @@ export interface EnergyData {
 
 export interface Widget {
   id: string
-  type: 'server_status' | 'adguard_home' | 'docker_overview' | 'custom_button' | 'home_assistant' | 'pihole' | 'nginx_pm' | 'home_assistant_energy' | 'calendar' | 'weather' | 'helbackup'
+  type: 'server_status' | 'adguard_home' | 'docker_overview' | 'custom_button' | 'home_assistant' | 'pihole' | 'nginx_pm' | 'home_assistant_energy' | 'calendar' | 'weather' | 'helbackup' | 'appdata_backup'
   name: string
   config: ServerStatusConfig | AdGuardHomeConfig | CustomButtonConfig | HomeAssistantConfig | PiholeConfig | NginxPMConfig | CalendarWidgetConfig | WeatherWidgetConfig | Record<string, never>
   position: number
@@ -510,6 +524,14 @@ export interface BackupStatusResult {
 }
 
 // ── Resource History ──────────────────────────────────────────────────────────
+
+export interface AppdataBackupWidgetStats {
+  status: 'ok' | 'warning' | 'error'
+  label: string
+  sourceFound: boolean
+  lastRun: string | null
+  error: string | null
+}
 
 export interface ResourceSnapshot {
   recorded_at: string

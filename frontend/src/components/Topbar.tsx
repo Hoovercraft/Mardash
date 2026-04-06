@@ -1,50 +1,58 @@
-import React, { useEffect, useState } from 'react'
-import { Sun, Moon, RefreshCw, Plus, Pencil, LayoutGrid, LayoutList, Minus, MoreVertical } from 'lucide-react'
+import React, { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLanguageStore } from '../store/useLanguageStore'
 import { useStore } from '../store/useStore'
-import { useDashboardStore } from '../store/useDashboardStore'
 import { useWidgetStore } from '../store/useWidgetStore'
 import { useDockerStore } from '../store/useDockerStore'
+import { useUnraidStore } from '../store/useUnraidStore'
 import { api } from '../api'
-import type { ThemeAccent, ServerStats, AdGuardStats, HaEntityState, NpmStats, CalendarEntry, WeatherStats } from '../types'
+import type { ServerStats, AdGuardStats, HaEntityState, NpmStats, CalendarEntry, WeatherStats, WeatherWidgetConfig, PollenTopbarStats } from '../types'
 import { containerCounts } from '../utils'
+
+const WEATHER_ICONS: Record<number, string> = {
+  0: '☀️',
+  1: '🌤️', 2: '⛅', 3: '☁️',
+  45: '🌫️', 48: '🌫️',
+  51: '🌦️', 53: '🌦️', 55: '🌧️',
+  56: '🌧️', 57: '🌧️',
+  61: '🌦️', 63: '🌧️', 65: '🌧️',
+  66: '🌧️', 67: '🌧️',
+  71: '🌨️', 73: '🌨️', 75: '🌨️', 77: '🌨️',
+  80: '🌦️', 81: '🌦️', 82: '🌧️',
+  85: '🌨️', 86: '🌨️',
+  95: '⛈️', 96: '⛈️', 99: '⛈️',
+}
 
 interface Props {
   page: string
-  onAddService: () => void
-  onAddWidget: () => void
-  onCheckAll: () => void
-  checking: boolean
+  onNavigate?: (page: string) => void
+  onAddService?: () => void
+  onAddWidget?: () => void
+  onCheckAll?: () => void
+  checking?: boolean
 }
 
-const ACCENTS: { value: ThemeAccent; label: string; color: string }[] = [
-  { value: 'cyan', label: 'Cyan', color: '#22d3ee' },
-  { value: 'orange', label: 'Orange', color: '#fb923c' },
-  { value: 'magenta', label: 'Magenta', color: '#e879f9' },
-]
-
-export function Topbar({ page, onAddService, onAddWidget, onCheckAll, checking }: Props) {
+export function Topbar({ page: _page, onNavigate }: Props) {
   const { t } = useTranslation('common')
   const { language } = useLanguageStore()
   const dateLocale = language === 'de' ? 'de-DE' : 'en-US'
-  const { settings, setThemeMode, setThemeAccent } = useStore()
-  const { editMode, setEditMode, addPlaceholder } = useDashboardStore()
+  const { settings } = useStore()
   const { widgets, stats, loadWidgets, loadStats, startPolling, stopPolling } = useWidgetStore()
   const { containers, loadContainers } = useDockerStore()
-  const mode = settings?.theme_mode ?? 'dark'
-  const accent = settings?.theme_accent ?? 'cyan'
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const dropdownRef = React.useRef<HTMLDivElement>(null)
+  const { instances: unraidInstances, online: unraidOnline, loadInstances: loadUnraidInstances, pingAll: pingAllUnraid } = useUnraidStore()
 
-  const canEditDashboard = true
+  const [serverOffset, setServerOffset] = React.useState(0)
+  const [now, setNow] = React.useState(() => new Date())
+
+  void settings
+  void _page
 
   const topbarWidgets = widgets.filter(w => w.display_location === 'topbar')
   const hasDockerTopbar = topbarWidgets.some(w => w.type === 'docker_overview')
-  const statsWidgetKey = topbarWidgets.filter(w => w.type !== 'docker_overview').map(w => w.id).join(',')
-
-  const [serverOffset, setServerOffset] = useState(0)
-  const [now, setNow] = useState(() => new Date())
+  const statsWidgetKey = topbarWidgets
+    .filter(w => w.type !== 'docker_overview')
+    .map(w => w.id)
+    .join(',')
 
   useEffect(() => {
     api.serverTime().then(({ iso }) => {
@@ -57,27 +65,76 @@ export function Topbar({ page, onAddService, onAddWidget, onCheckAll, checking }
   const serverNow = new Date(now.getTime() + serverOffset)
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false)
-      }
-    }
-    if (dropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [dropdownOpen])
-
-  useEffect(() => {
     loadWidgets().catch(() => {})
   }, [loadWidgets])
 
   useEffect(() => {
     if (!statsWidgetKey) return
     const pollable = topbarWidgets.filter(w => w.type !== 'docker_overview' && w.type !== 'custom_button')
-    pollable.forEach(w => { loadStats(w.id).catch(() => {}); startPolling(w.id, w.type) })
-    return () => pollable.forEach(w => stopPolling(w.id))
+    pollable.forEach(w => {
+      loadStats(w.id).catch(() => {})
+      startPolling(w.id, w.type)
+    })
+    return () => {
+      pollable.forEach(w => stopPolling(w.id))
+    }
   }, [statsWidgetKey, topbarWidgets, loadStats, startPolling, stopPolling])
+
+  useEffect(() => {
+    loadUnraidInstances().catch(() => {})
+  }, [loadUnraidInstances])
+
+  useEffect(() => {
+    if (unraidInstances.length === 0) return
+    pingAllUnraid().catch(() => {})
+    const interval = setInterval(() => pingAllUnraid().catch(() => {}), 30000)
+    return () => clearInterval(interval)
+  }, [unraidInstances, pingAllUnraid])
+
+  const openControlCenterTab = (tab: 'apps' | 'dashboard' | 'integrationen' | 'widgets' | 'topbar' | 'appdata_backup' | 'design') => {
+    localStorage.setItem('mardash.controlcenter.tab', tab)
+    onNavigate?.('control_center')
+  }
+
+  const [appdataBackup, setAppdataBackup] = React.useState<null | { status: 'ok' | 'warning' | 'error'; label: string }>(null)
+  const [pollen, setPollen] = React.useState<PollenTopbarStats | null>(null)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await api.appdataBackup.status()
+        setAppdataBackup({ status: res.status, label: res.label })
+      } catch {
+        setAppdataBackup({ status: 'warning', label: 'Unklar' })
+      }
+    }
+    load().catch(() => {})
+    const interval = setInterval(() => { load().catch(() => {}) }, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await api.pollen.status()
+        setPollen(res)
+      } catch (e) {
+        setPollen({
+          hasel: null,
+          birke: null,
+          graeser: null,
+          level: 'unknown',
+          label: 'Unklar',
+          source_region: null,
+          updated_at: null,
+          error: e instanceof Error ? e.message : 'Fehler',
+        })
+      }
+    }
+    load().catch(() => {})
+    const interval = setInterval(() => { load().catch(() => {}) }, 3600000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     if (!hasDockerTopbar) return
@@ -96,9 +153,197 @@ export function Topbar({ page, onAddService, onAddWidget, onCheckAll, checking }
       </div>
 
       <div className="topbar-center">
-        {topbarWidgets.map(w => {
+        {(() => {
+          const enabledUnraid = unraidInstances.filter(i => i.enabled)
+          const anyConfigured = enabledUnraid.length > 0
+          const anyOnline = enabledUnraid.some(i => unraidOnline[i.id] === true)
+          const anyKnown = enabledUnraid.some(i => i.id in unraidOnline)
+
+          const tone = !anyConfigured
+            ? { color: '#f59e0b', label: 'Unraid: Nicht eingerichtet' }
+            : anyOnline
+              ? { color: 'var(--status-online)', label: 'Unraid: Online' }
+              : anyKnown
+                ? { color: 'var(--status-offline)', label: 'Unraid: Offline' }
+                : { color: '#f59e0b', label: 'Unraid: Unklar' }
+
+          return (
+            <button
+              className="btn btn-ghost"
+              onClick={() => onNavigate?.('unraid')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                border: '1px solid var(--glass-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '4px 12px',
+                background: 'var(--glass-bg)',
+                flexShrink: 0,
+              }}
+              title="Zur Unraid-Seite"
+            >
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700 }}>Unraid</span>
+              <span
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  background: tone.color,
+                  boxShadow: `0 0 8px ${tone.color}`,
+                  display: 'inline-block',
+                }}
+              />
+            </button>
+          )
+        })()}
+
+        {(() => {
+          const tone = !appdataBackup
+            ? { color: '#f59e0b', label: 'Backup: Unklar' }
+            : appdataBackup.status === 'ok'
+              ? { color: 'var(--status-online)', label: 'Backup: OK' }
+              : appdataBackup.status === 'error'
+                ? { color: 'var(--status-offline)', label: 'Backup: Fehler' }
+                : { color: '#f59e0b', label: 'Backup: Unklar' }
+
+          return (
+            <button
+              className="btn btn-ghost"
+              onClick={() => openControlCenterTab('appdata_backup')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                border: '1px solid var(--glass-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '4px 12px',
+                background: 'var(--glass-bg)',
+                flexShrink: 0,
+              }}
+              title="Zum Appdata-Backup im Control Center"
+            >
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700 }}>Backup</span>
+              <span
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  background: tone.color,
+                  boxShadow: `0 0 8px ${tone.color}`,
+                  display: 'inline-block',
+                }}
+              />
+            </button>
+          )
+        })()}
+
+        {(() => {
+          const tone = !pollen
+            ? { color: '#f59e0b', label: 'Pollen: Unklar' }
+            : pollen.level === 'high'
+              ? { color: 'var(--status-offline)', label: pollen.label }
+              : pollen.level === 'medium'
+                ? { color: '#f59e0b', label: pollen.label }
+                : pollen.level === 'low'
+                  ? { color: 'var(--status-online)', label: pollen.label }
+                  : { color: '#f59e0b', label: pollen.label }
+
+          return (
+            <button
+              className="btn btn-ghost"
+              onClick={() => window.open('https://www.wetteronline.de/pollen/gelsenkirchen', '_blank', 'noopener,noreferrer')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                border: '1px solid var(--glass-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '4px 12px',
+                background: 'var(--glass-bg)',
+                flexShrink: 0,
+              }}
+              title="Zum Pollenflug"
+            >
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700 }}>Pollen</span>
+              <span
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  background: tone.color,
+                  boxShadow: `0 0 8px ${tone.color}`,
+                  display: 'inline-block',
+                }}
+              />
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                {pollen?.label ?? 'Unklar'}
+              </span>
+            </button>
+          )
+        })()}
+
+        {(() => {
+          const weatherWidget = topbarWidgets.find(w => w.type === 'weather')
+          if (!weatherWidget) return null
+
+          const weather = stats[weatherWidget.id] as WeatherStats | undefined
+          const config = weatherWidget.config as WeatherWidgetConfig
+          const location = config.city_name || config.location_name || weatherWidget.name || 'Wetter'
+
+          const hasWeather =
+            !!weather &&
+            !weather.error &&
+            typeof weather.temperature === 'number' &&
+            typeof weather.humidity === 'number' &&
+            typeof weather.weather_code === 'number' &&
+            typeof weather.unit === 'string' &&
+            weather.unit.length > 0
+
+          const icon = hasWeather ? (WEATHER_ICONS[weather.weather_code] ?? '🌡️') : '🌡️'
+
+          return (
+            <button
+              className="btn btn-ghost"
+              onClick={() => window.open('https://www.dwd.de/DE/leistungen/radarbild_film/radarbild_film.html', '_blank', 'noopener,noreferrer')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                border: '1px solid var(--glass-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '4px 12px',
+                background: 'var(--glass-bg)',
+                flexShrink: 0,
+              }}
+              title="Zum Regenradar"
+            >
+              <span style={{ fontSize: 18, lineHeight: 1 }}>{icon}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700 }}>{location}</span>
+                  {hasWeather && (
+                    <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--accent)' }}>
+                      {weather.temperature}{weather.unit}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                  {hasWeather
+                    ? `${weather.humidity}% · ${weather.rain_text ?? 'Kein Regen in Sicht'}`
+                    : (weather?.error || 'Lade Wetter…')}
+                </div>
+              </div>
+            </button>
+          )
+        })()}
+
+        {topbarWidgets.filter(w => w.type !== 'weather').map(w => {
           const pillStyle: React.CSSProperties = {
-            display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
+            display: 'flex',
+            gap: 10,
+            alignItems: 'center',
+            flexWrap: 'wrap',
             border: '1px solid var(--accent)',
             borderRadius: 'var(--radius-md)',
             padding: '4px 12px',
@@ -107,6 +352,7 @@ export function Topbar({ page, onAddService, onAddWidget, onCheckAll, checking }
             fontSize: 12,
             flexShrink: 0,
           }
+
           const label = (text: string) => (
             <span style={{ color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.3px', marginRight: 2 }}>{text}</span>
           )
@@ -121,15 +367,15 @@ export function Topbar({ page, onAddService, onAddWidget, onCheckAll, checking }
             pct >= 90 ? 'var(--status-offline)' : pct >= 70 ? '#f59e0b' : 'var(--status-online)'
 
           if (w.type === 'docker_overview') {
-            const { running, stopped, restarting } = containerCounts(containers)
+            const counts = containerCounts(containers)
             return (
               <div key={w.id} style={pillStyle}>
                 {label('Docker:')}
                 {val(String(containers.length))} {muted('total')}
                 {sep}
-                {val(String(running), 'var(--status-online)')} {muted('running')}
-                {stopped > 0 && <>{sep}{val(String(stopped), 'var(--text-muted)')} {muted('stopped')}</>}
-                {restarting > 0 && <>{sep}{val(String(restarting), '#f59e0b')} {muted('restarting')}</>}
+                {val(String(counts.running), 'var(--status-online)')} {muted('running')}
+                {counts.stopped > 0 && <>{sep}{val(String(counts.stopped), 'var(--text-muted)')} {muted('stopped')}</>}
+                {counts.restarting > 0 && <>{sep}{val(String(counts.restarting), '#f59e0b')} {muted('restarting')}</>}
               </div>
             )
           }
@@ -225,106 +471,7 @@ export function Topbar({ page, onAddService, onAddWidget, onCheckAll, checking }
         })}
       </div>
 
-      <div className="topbar-actions">
-        {page === 'dashboard' && canEditDashboard && (
-          <>
-            <button className={`btn ${editMode ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setEditMode(!editMode)} style={{ gap: 6 }}>
-              <Pencil size={15} />
-              {editMode ? t('topbar.done') : t('topbar.edit')}
-            </button>
-
-            {editMode && (
-              <>
-                <button className="btn btn-ghost" onClick={() => addPlaceholder('small')} title="Kleine Kachel">
-                  <Minus size={15} />
-                </button>
-                <button className="btn btn-ghost" onClick={() => addPlaceholder('medium')} title="Mittlere Kachel">
-                  <LayoutGrid size={15} />
-                </button>
-                <button className="btn btn-ghost" onClick={() => addPlaceholder('large')} title="Große Kachel">
-                  <LayoutList size={15} />
-                </button>
-              </>
-            )}
-          </>
-        )}
-
-        {page === 'services' && (
-          <>
-            <button className="btn btn-ghost" onClick={onCheckAll} disabled={checking} style={{ gap: 6 }}>
-              <RefreshCw size={15} className={checking ? 'spin' : ''} />
-              Prüfen
-            </button>
-            <button className="btn btn-primary" onClick={onAddService} style={{ gap: 6 }}>
-              <Plus size={15} />
-              Control Center
-            </button>
-          </>
-        )}
-
-        {page === 'widgets' && (
-          <button className="btn btn-primary" onClick={onAddWidget} style={{ gap: 6 }}>
-            <Plus size={15} />
-            Control Center
-          </button>
-        )}
-
-        <div style={{ position: 'relative' }} ref={dropdownRef}>
-          <button className="btn btn-ghost" onClick={() => setDropdownOpen(v => !v)} title="Darstellung" style={{ gap: 6 }}>
-            <MoreVertical size={16} />
-          </button>
-
-          {dropdownOpen && (
-            <div className="glass" style={{
-              position: 'absolute',
-              right: 0,
-              top: 'calc(100% + 8px)',
-              minWidth: 220,
-              padding: 10,
-              borderRadius: 'var(--radius-lg)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-              zIndex: 50,
-            }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>Darstellung</div>
-
-              <button
-                className="btn btn-ghost"
-                onClick={() => {
-                  setThemeMode(mode === 'dark' ? 'light' : 'dark')
-                  setDropdownOpen(false)
-                }}
-                style={{ justifyContent: 'flex-start', gap: 8 }}
-              >
-                {mode === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-                {mode === 'dark' ? 'Helles Design' : 'Dunkles Design'}
-              </button>
-
-              <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
-                {ACCENTS.map(a => (
-                  <button
-                    key={a.value}
-                    onClick={() => {
-                      setThemeAccent(a.value)
-                      setDropdownOpen(false)
-                    }}
-                    title={a.label}
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: '50%',
-                      border: accent === a.value ? '2px solid white' : '1px solid var(--glass-border)',
-                      background: a.color,
-                      cursor: 'pointer',
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <div className="topbar-actions" />
     </header>
   )
 }

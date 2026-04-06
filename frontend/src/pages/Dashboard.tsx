@@ -369,6 +369,8 @@ function DashboardWidgetCard({ item, editMode, groups, colSpan = 2, hiddenWidget
             : <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>{t('loading.weather')}</div>
         ) : item.widget.type === 'helbackup' ? (
           <HelbackupWidget />
+        ) : item.widget.type === 'appdata_backup' ? (
+          <AppdataBackupWidgetView stats={s ? (s as AppdataBackupWidgetStats) : null} />
         ) : null}
       </div>
       {showVisibilityOverlay && (
@@ -839,7 +841,6 @@ export function Dashboard({ onEdit }: Props) {
       {/* Bookmarks section */}
       {dashboardBookmarks.length > 0 && (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>{t('bookmarks')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
             {dashboardBookmarks.map(bm => (
               <a

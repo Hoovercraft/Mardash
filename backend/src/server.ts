@@ -24,7 +24,6 @@ import { haFloorplanRoutes } from './routes/ha-floorplan'
 import { tmdbRoutes } from './routes/tmdb'
 import recyclarrRoutes, { initRecyclarrSchedulers } from './routes/recyclarr'
 import { activityRoutes, logActivity } from './routes/activity'
-import { logbuchRoutes } from './routes/logbuch'
 import { initHaWsClients } from './clients/ha-ws-manager'
 import { getDb } from './db/database'
 import { Agent, request as undiciRequest } from 'undici'
@@ -37,6 +36,7 @@ import { bookmarksRoutes } from './routes/bookmarks'
 import { iconsRoutes } from './routes/icons'
 import { instancesRoutes } from './routes/instances'
 import { helbackupRoutes } from './routes/helbackup'
+import { pollenRoutes } from './routes/pollen'
 import { nanoid } from 'nanoid'
 import { promises as fsp } from 'fs'
 
@@ -77,20 +77,15 @@ async function start() {
       // Redact sensitive fields from all log output
       redact: {
         paths: ['req.headers.authorization', 'req.headers.cookie'],
-        censor: '[REDACTED]',
-      },
+        censor: '[REDACTED]'},
       transport: LOG_FORMAT !== 'json'
         ? {
             target: 'pino-pretty',
             options: {
               colorize: true,
               translateTime: 'SYS:yyyy-mm-dd HH:MM:ss',
-              ignore: 'pid,hostname',
-            },
-          }
-        : undefined,
-    },
-  })
+              ignore: 'pid,hostname'}}
+        : undefined}})
 
   // ── Startup summary ──────────────────────────────────────────────────────────
   const dockerSocketPresent = fs.existsSync(DOCKER_SOCKET)
@@ -103,8 +98,7 @@ async function start() {
     secretKey: process.env.SECRET_KEY ? 'set' : 'local default',
     localAuthBypass: LOCAL_AUTH_BYPASS,
     migrationsApplied,
-    nodeEnv: NODE_ENV,
-  }, 'MARDASH starting')
+    nodeEnv: NODE_ENV}, 'MARDASH starting')
 
   if (!process.env.SECRET_KEY && !LOCAL_AUTH_BYPASS) {
     app.log.warn('SECRET_KEY not set — using insecure default. Set SECRET_KEY env var in production!')
@@ -126,8 +120,7 @@ async function start() {
         method: req.method,
         url: req.url,
         statusCode: reply.statusCode,
-        ms: Math.round(reply.elapsedTime),
-      }, 'Slow response')
+        ms: Math.round(reply.elapsedTime)}, 'Slow response')
     }
     done()
   })
@@ -142,8 +135,7 @@ async function start() {
 
   // ── CORS ─────────────────────────────────────────────────────────────────────
   await app.register(cors, {
-    origin: NODE_ENV === 'development' ? true : false,
-  })
+    origin: NODE_ENV === 'development' ? true : false})
 
   // ── Cookies (must be registered before JWT) ──────────────────────────────────
   await app.register(fastifyCookie)
@@ -153,9 +145,7 @@ async function start() {
     secret: SECRET_KEY,
     cookie: {
       cookieName: 'auth_token',
-      signed: false,
-    },
-  })
+      signed: false}})
 
   // ── Local auth bypass ─────────────────────────────────────────────────────────
   if (LOCAL_AUTH_BYPASS) {
@@ -164,8 +154,7 @@ async function start() {
         sub: 'local-admin',
         username: 'lokal',
         role: 'admin',
-        groupId: null,
-      }
+        groupId: null}
       req.jwtVerify = async () => {}
     })
   }
@@ -209,8 +198,7 @@ async function start() {
   const publicPath = path.join(__dirname, '..', 'public')
   await app.register(staticFiles, {
     root: publicPath,
-    prefix: '/',
-  })
+    prefix: '/'})
 
   // ── Serve uploaded background images ─────────────────────────────────────────
   app.get<{ Params: { filename: string } }>('/backgrounds/:filename', async (req, reply) => {
@@ -221,8 +209,7 @@ async function start() {
       '.png': 'image/png',
       '.jpg': 'image/jpeg',
       '.svg': 'image/svg+xml',
-      '.webp': 'image/webp',
-    }
+      '.webp': 'image/webp'}
     const ext = path.extname(filePath).toLowerCase()
     reply.header('Content-Type', mimeTypes[ext] ?? 'application/octet-stream')
     reply.header('Cache-Control', 'public, max-age=3600')
@@ -238,8 +225,7 @@ async function start() {
     const mimeTypes: Record<string, string> = {
       '.png': 'image/png',
       '.jpg': 'image/jpeg',
-      '.svg': 'image/svg+xml',
-    }
+      '.svg': 'image/svg+xml'}
     const ext = path.extname(filePath).toLowerCase()
     reply.header('Content-Type', mimeTypes[ext] ?? 'application/octet-stream')
     reply.header('Cache-Control', 'public, max-age=3600')
@@ -255,8 +241,7 @@ async function start() {
       '.png': 'image/png',
       '.jpg': 'image/jpeg',
       '.webp': 'image/webp',
-      '.svg': 'image/svg+xml',
-    }
+      '.svg': 'image/svg+xml'}
     const ext = path.extname(filePath).toLowerCase()
     reply.header('Content-Type', mimeTypes[ext] ?? 'application/octet-stream')
     reply.header('Cache-Control', 'public, max-age=3600')
@@ -267,8 +252,7 @@ async function start() {
   app.get('/api/health', { logLevel: 'silent' }, async () => ({
     status: 'ok',
     version: _appVersion,
-    uptime: process.uptime(),
-  }))
+    uptime: process.uptime()}))
 
   // ── Server time — silent (polled by frontend clock, ~every 30s) ──────────────
   app.get('/api/time', { logLevel: 'silent' }, async () => ({ iso: new Date().toISOString() }))
@@ -290,7 +274,6 @@ async function start() {
   await app.register(tmdbRoutes)
   await app.register(recyclarrRoutes)
   await app.register(activityRoutes)
-  await app.register(logbuchRoutes)
   await app.register(networkRoutes)
   await app.register(backupRoutes)
   await app.register(changelogRoutes)
@@ -300,6 +283,7 @@ async function start() {
   await app.register(iconsRoutes)
   await app.register(instancesRoutes)
   await app.register(helbackupRoutes)
+  await app.register(pollenRoutes)
 
   // ── Docker container state poller (logs transitions to activity feed) ─────────
   if (dockerSocketPresent) {
@@ -311,8 +295,7 @@ async function start() {
     app.log.error({
       err: error,
       url: request.url,
-      method: request.method,
-    }, 'Unhandled error')
+      method: request.method}, 'Unhandled error')
     reply.status(500).send({ error: 'Internal server error', detail: error.message })
   })
 
@@ -500,8 +483,7 @@ async function start() {
   const healthPingAgent = new Agent({
     headersTimeout: 10_000,
     bodyTimeout: 10_000,
-    connect: { rejectUnauthorized: false },
-  })
+    connect: { rejectUnauthorized: false }})
 
   const runScheduledHealthChecks = async () => {
     const db = getDb()

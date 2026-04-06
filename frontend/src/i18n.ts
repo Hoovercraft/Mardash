@@ -9,7 +9,6 @@ import deHa from './locales/de/ha.json'
 import deDocker from './locales/de/docker.json'
 import deBackup from './locales/de/backup.json'
 import deNetwork from './locales/de/network.json'
-import deLogbuch from './locales/de/logbuch.json'
 import deBookmarks from './locales/de/bookmarks.json'
 import deServices from './locales/de/services.json'
 import deWidgets from './locales/de/widgets.json'
@@ -31,14 +30,10 @@ i18n.use(initReactI18next).init({
       docker: deDocker,
       backup: deBackup,
       network: deNetwork,
-      logbuch: deLogbuch,
       bookmarks: deBookmarks,
       services: deServices,
       widgets: deWidgets,
       instances: deInstances,
-      unraid: deUnraid,
-    },
-  },
-})
+      unraid: deUnraid}}})
 
 export default i18n

@@ -5,10 +5,8 @@ import type { Service } from '../types'
 const Dashboard = lazy(() => import('../pages/Dashboard').then(m => ({ default: m.Dashboard })))
 const ServicesPage = lazy(() => import('../pages/ServicesPage').then(m => ({ default: m.ServicesPage })))
 const SettingsPage = lazy(() => import('../pages/Settings').then(m => ({ default: m.SettingsPage })))
-const WidgetsPage = lazy(() => import('../pages/WidgetsPage').then(m => ({ default: m.WidgetsPage })))
 const DockerPage = lazy(() => import('../pages/DockerPage').then(m => ({ default: m.DockerPage })))
 const HaPage = lazy(() => import('../pages/HaPage').then(m => ({ default: m.HaPage })))
-const LogbuchPage = lazy(() => import('../pages/LogbuchPage').then(m => ({ default: m.LogbuchPage })))
 const NetworkPage = lazy(() => import('../pages/NetworkPage').then(m => ({ default: m.NetworkPage })))
 const BackupPage = lazy(() => import('../pages/BackupPage').then(m => ({ default: m.BackupPage })))
 const UnraidPage = lazy(() => import('../pages/UnraidPage').then(m => ({ default: m.UnraidPage })))
@@ -46,8 +44,7 @@ export function AppContent(props: Props) {
     setEditService,
     showAddHaPanel,
     setShowAddHaPanel,
-    setShowChangelog,
-  } = props
+    setShowChangelog} = props
 
   const closeModal = () => {
     setShowModal(false)
@@ -59,10 +56,8 @@ export function AppContent(props: Props) {
       <Suspense fallback={<PageLoading />}>
         {page === 'dashboard' && <Dashboard />}
         {page === 'services' && <ServicesPage />}
-        {page === 'widgets' && <WidgetsPage />}
         {page === 'docker' && <DockerPage />}
         {page === 'home_assistant' && <HaPage showAddPanel={showAddHaPanel} onCloseAddPanel={() => setShowAddHaPanel(false)} />}
-        {page === 'logbuch' && <LogbuchPage />}
         {page === 'network' && <NetworkPage />}
         {page === 'backup' && <BackupPage />}
         {page === 'unraid' && <UnraidPage />}
