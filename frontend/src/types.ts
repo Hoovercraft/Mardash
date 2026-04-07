@@ -226,9 +226,9 @@ export interface EnergyData {
 
 export interface Widget {
   id: string
-  type: 'server_status' | 'adguard_home' | 'docker_overview' | 'custom_button' | 'home_assistant' | 'pihole' | 'nginx_pm' | 'home_assistant_energy' | 'calendar' | 'weather' | 'helbackup' | 'appdata_backup'
+  type: 'unraid_status' | 'appdata_backup' | 'weather' | 'pollen'
   name: string
-  config: ServerStatusConfig | AdGuardHomeConfig | CustomButtonConfig | HomeAssistantConfig | PiholeConfig | NginxPMConfig | CalendarWidgetConfig | WeatherWidgetConfig | Record<string, never>
+  config: ServerStatusConfig | WeatherWidgetConfig | Record<string, never>
   position: number
   show_in_topbar: boolean  // deprecated: use display_location
   display_location: 'topbar' | 'sidebar' | 'none'
@@ -258,7 +258,7 @@ export interface NpmStats {
   cert_expiring_soon: number  // expires within 30 days
 }
 
-export type WidgetStats = ServerStats | AdGuardStats | HaEntityState[] | NpmStats | CalendarEntry[] | WeatherStats | EnergyData
+export type WidgetStats = ServerStats | WeatherStats | PollenTopbarStats | AppdataBackupWidgetStats
 
 export interface DashboardWidgetItem {
   id: string

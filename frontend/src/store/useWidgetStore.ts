@@ -1,22 +1,16 @@
 import { create } from 'zustand'
 import { api } from '../api'
 import type { Widget, WidgetStats } from '../types'
-import { useDockerStore } from './useDockerStore'
 
 // ── Centralized polling state (module scope, non-reactive) ────────────────────
 const intervalMap = new Map<string, ReturnType<typeof setInterval>>()
 const refCountMap = new Map<string, number>()
 
 const POLL_INTERVALS: Record<string, number> = {
-  server_status: 2000,
-  adguard_home: 30000,
-  pihole: 30000,
-  docker_overview: 30000,
-  nginx_pm: 60000,
-  home_assistant: 30000,
-  home_assistant_energy: 30000,
-  calendar: 300000,
+  unraid_status: 2000,
+  appdata_backup: 600000,
   weather: 600000,
+  pollen: 600000,
 }
 
 interface WidgetState {
@@ -84,13 +78,12 @@ export const useWidgetStore = create<WidgetState>((set, get) => ({
       const s = await api.widgets.stats(id)
       set(state => ({ stats: { ...state.stats, [id]: s } }))
     } catch {
-      // ignore stat errors (server may not be Linux / AdGuard unreachable)
+      // ignore stat errors
     }
   },
 
   setAdGuardProtection: async (id, enabled) => {
     await api.widgets.setAdGuardProtection(id, enabled)
-    // Reload stats so protection_enabled reflects the new state
     await get().loadStats(id)
   },
 
@@ -114,15 +107,10 @@ export const useWidgetStore = create<WidgetState>((set, get) => ({
     refCountMap.set(widgetId, count)
     if (count === 1) {
       const ms = POLL_INTERVALS[widgetType] ?? 30000
-      let id: ReturnType<typeof setInterval>
-      if (widgetType === 'docker_overview') {
-        id = setInterval(() => { useDockerStore.getState().loadContainers().catch(() => {}) }, ms)
-      } else {
-        if (!(widgetType in POLL_INTERVALS)) {
-          console.warn(`[useWidgetStore] Unknown widget type "${widgetType}" — using default 30s interval`)
-        }
-        id = setInterval(() => { useWidgetStore.getState().loadStats(widgetId).catch(() => {}) }, ms)
+      if (!(widgetType in POLL_INTERVALS)) {
+        console.warn(`[useWidgetStore] Unknown widget type "${widgetType}" — using default 30s interval`)
       }
+      const id = setInterval(() => { useWidgetStore.getState().loadStats(widgetId).catch(() => {}) }, ms)
       intervalMap.set(widgetId, id)
     }
   },

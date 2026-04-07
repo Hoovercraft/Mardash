@@ -3,7 +3,6 @@ import { Suspense, lazy } from 'react'
 const Dashboard = lazy(() => import('../pages/Dashboard').then(m => ({ default: m.Dashboard })))
 const ServicesPage = lazy(() => import('../pages/ServicesPage').then(m => ({ default: m.ServicesPage })))
 const SettingsPage = lazy(() => import('../pages/Settings').then(m => ({ default: m.SettingsPage })))
-const DockerPage = lazy(() => import('../pages/DockerPage').then(m => ({ default: m.DockerPage })))
 const HaPage = lazy(() => import('../pages/HaPage').then(m => ({ default: m.HaPage })))
 const NetworkPage = lazy(() => import('../pages/NetworkPage').then(m => ({ default: m.NetworkPage })))
 const BackupPage = lazy(() => import('../pages/BackupPage').then(m => ({ default: m.BackupPage })))
@@ -40,7 +39,6 @@ export function AppContent(props: Props) {
       <Suspense fallback={<PageLoading />}>
         {page === 'dashboard' && <Dashboard />}
         {page === 'services' && <ServicesPage onEdit={(service) => onEditService(service.id)} />}
-        {page === 'docker' && <DockerPage />}
         {page === 'home_assistant' && <HaPage showAddPanel={showAddHaPanel} onCloseAddPanel={() => setShowAddHaPanel(false)} />}
         {page === 'network' && <NetworkPage />}
         {page === 'backup' && <BackupPage />}
@@ -50,7 +48,6 @@ export function AppContent(props: Props) {
         {page === 'control_center' && <ControlCenterPage />}
         {page === 'settings' && <SettingsPage />}
       </Suspense>
-
     </>
   )
 }

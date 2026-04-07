@@ -3,44 +3,16 @@ import { useTranslation } from 'react-i18next'
 import { useStore } from '../store/useStore'
 import { useDashboardStore } from '../store/useDashboardStore'
 import { useWidgetStore } from '../store/useWidgetStore'
-import { useDockerStore } from '../store/useDockerStore'
 import { ServiceCard } from '../components/ServiceCard'
-import { DockerOverviewContent, HaStatsView, CustomButtonsView, StatBar, NginxPMStatsView, HaEnergyWidgetView, CalendarWidgetContent, WeatherWidgetView } from './WidgetsPage'
-import { HelbackupWidget } from '../components/HelbackupWidget'
-import type { Service, DashboardItem, DashboardServiceItem, DashboardPlaceholderItem, DashboardWidgetItem, DashboardGroup, ServerStats, NpmStats, HaEntityState, Widget, EnergyData, CalendarEntry, WeatherStats, WeatherWidgetConfig } from '../types'
-import { normalizeUrl } from '../utils'
+import { WeatherWidgetView } from './WidgetsPage'
+import type { Service, DashboardItem, DashboardServiceItem, DashboardPlaceholderItem, DashboardWidgetItem, DashboardGroup, ServerStats, WeatherStats, WeatherWidgetConfig, AppdataBackupWidgetStats } from '../types'
 import { api, getIconUrl } from '../api'
 
 const FIXED_SERVICE_GROUP_ORDER = ['Externe Server', 'Interne Dienste', 'Internet']
 
 function DashboardWidgetIcon({ widget }: { widget: DashboardWidgetItem['widget'] }) {
-  const { services } = useStore()
-
-  if (widget.type === 'docker_overview') {
-    const url = getIconUrl(widget)
-    if (url) {
-      return <img src={url} alt="" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 6, flexShrink: 0 }} />
-    }
-    return <Container size={26} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-  }
-
-  let iconUrl: string | null = null
-  let iconEmoji: string | null = null
-
-  if (widget.type === 'pihole' || widget.type === 'home_assistant' || widget.type === 'nginx_pm') {
-    const cfg = widget.config as { url?: string }
-    const widgetUrl = normalizeUrl(cfg.url ?? '')
-    const match = widgetUrl
-      ? services.find(s => normalizeUrl(s.url) === widgetUrl || (s.check_url && normalizeUrl(s.check_url) === widgetUrl))
-      : undefined
-    iconUrl = (match ? getIconUrl(match) : null) ?? getIconUrl(widget)
-    iconEmoji = match?.icon ?? null
-  } else {
-    iconUrl = getIconUrl(widget)
-  }
-
+  const iconUrl = getIconUrl(widget)
   if (iconUrl) return <img src={iconUrl} alt="" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 6, flexShrink: 0 }} />
-  if (iconEmoji) return <span style={{ fontSize: 22, lineHeight: 1, flexShrink: 0 }}>{iconEmoji}</span>
   return null
 }
 import {
@@ -59,7 +31,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, X, Container, Eye, EyeOff, RefreshCw, Home } from 'lucide-react'
+import { GripVertical, X, Eye, EyeOff } from 'lucide-react'
 
 // ── Shared edit-mode overlay (drag handle + remove button + group selector) ────
 function EditOverlay({
@@ -272,24 +244,15 @@ function DashboardWidgetCard({ item, editMode, groups, colSpan = 2, hiddenWidget
   hiddenWidgetIds?: string[]
 }) {
   const { t } = useTranslation('dashboard')
-  const { isAdmin } = useStore()
   const { removeItem, moveItemToGroup, showVisibilityOverlay } = useDashboardStore()
-  const { stats, setPiholeProtection } = useWidgetStore()
+  const { stats } = useWidgetStore()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id, disabled: !editMode,
   })
   const [showHandle, setShowHandle] = useState(false)
-  const [toggling, setToggling] = useState(false)
   const s = stats[item.widget.id]
   const isWidgetHidden = hiddenWidgetIds ? hiddenWidgetIds.includes(item.widget.id) : false
 
-  const handlePiholeToggle = async () => {
-    if (!isAdmin || item.widget.type !== 'pihole' || !s) return
-    const ph = s as AdGuardStats
-    setToggling(true)
-    try { await setPiholeProtection(item.widget.id, !ph.protection_enabled) }
-    finally { setToggling(false) }
-  }
 
   return (
     <div
@@ -312,17 +275,32 @@ function DashboardWidgetCard({ item, editMode, groups, colSpan = 2, hiddenWidget
           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{item.widget.name}</div>
         </div>
 
-        {item.widget.type === 'docker_overview' ? (
-          <DockerOverviewContent isAdmin={isAdmin} />
-        ) : item.widget.type === 'custom_button' ? (
-          <CustomButtonsView widget={item.widget as unknown as Widget} />
-        ) : item.widget.type === 'server_status' ? (
+        {item.widget.type === 'unraid_status' ? (
           s ? (() => {
             const ss = s as ServerStats
+            const pct = (value: number, total: number) => total > 0 ? Math.round((value / total) * 100) : null
+            const bar = (label: string, value: number | null, extra?: string) => {
+              const p = value ?? 0
+              const color = p >= 90 ? 'var(--status-offline)' : p >= 70 ? '#f59e0b' : 'var(--accent)'
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{label}</span>
+                    <span style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                      {value === null ? '—' : `${value}%`}
+                      {extra && <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>{extra}</span>}
+                    </span>
+                  </div>
+                  <div style={{ height: 4, borderRadius: 2, background: 'var(--glass-border)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${Math.min(p, 100)}%`, background: color, borderRadius: 2, transition: 'width 0.4s ease' }} />
+                  </div>
+                </div>
+              )
+            }
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <StatBar label="CPU" value={ss.cpu.load >= 0 ? ss.cpu.load : null} unit="%" />
-                <StatBar label="RAM" value={ss.ram.total > 0 ? Math.round((ss.ram.used / ss.ram.total) * 100) : null} unit="%" extra={ss.ram.total > 0 ? `${(ss.ram.used / 1024).toFixed(1)} / ${(ss.ram.total / 1024).toFixed(1)} GB` : undefined} />
+                {bar('CPU', ss.cpu.load >= 0 ? ss.cpu.load : null)}
+                {bar('RAM', pct(ss.ram.used, ss.ram.total), ss.ram.total > 0 ? `${(ss.ram.used / 1024).toFixed(1)} / ${(ss.ram.total / 1024).toFixed(1)} GB` : undefined)}
                 {ss.disks.map(d => (
                   d.error === 'not_mounted'
                     ? <div key={d.path} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -334,35 +312,14 @@ function DashboardWidgetCard({ item, editMode, groups, colSpan = 2, hiddenWidget
                           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{d.name}</span>
                           <span className="badge-warning" style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>{t('disk.duplicate')}</span>
                         </div>
-                      : <StatBar key={d.path} label={d.name} value={d.total > 0 ? Math.round((d.used / d.total) * 100) : null} unit="%" extra={d.total > 0 ? `${(d.used / 1024).toFixed(0)} / ${(d.total / 1024).toFixed(0)} GB` : undefined} />
+                      : bar(d.name, pct(d.used, d.total), d.total > 0 ? `${(d.used / 1024).toFixed(0)} / ${(d.total / 1024).toFixed(0)} GB` : undefined)
                 ))}
               </div>
             )
           })() : <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>{t('loading.stats')}</div>
-        ) : item.widget.type === 'adguard_home' ? (
-          s ? <AdGuardStatsView stats={s as AdGuardStats} isAdmin={isAdmin} toggling={toggling} onToggle={handleAdGuardToggle} />
-            : <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>{t('loading.stats')}</div>
-        ) : item.widget.type === 'pihole' ? (
-          s ? <AdGuardStatsView stats={s as AdGuardStats} isAdmin={isAdmin} toggling={toggling} onToggle={handlePiholeToggle} />
-            : <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>{t('loading.stats')}</div>
-        ) : item.widget.type === 'home_assistant' ? (
-          s ? <HaStatsView entities={s as HaEntityState[]} widgetId={item.widget.id} isAdmin={isAdmin} />
-            : <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>{t('loading.states')}</div>
-        ) : item.widget.type === 'nginx_pm' ? (
-          s ? <NginxPMStatsView stats={s as NpmStats & { error?: string }} />
-            : <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>{t('loading.stats')}</div>
-        ) : item.widget.type === 'home_assistant_energy' ? (
-          s ? <HaEnergyWidgetView stats={s as EnergyData} />
-            : <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>{t('loading.stats')}</div>
-        ) : item.widget.type === 'calendar' ? (
-          s ? <CalendarWidgetContent entries={s as CalendarEntry[]} />
-            : <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>{t('loading.calendar')}</div>
         ) : item.widget.type === 'weather' ? (
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>
-            Wetter vorübergehend deaktiviert
-          </div>
-        ) : item.widget.type === 'helbackup' ? (
-          <HelbackupWidget />
+          s ? <WeatherWidgetView stats={s as WeatherStats} config={item.widget.config as WeatherWidgetConfig} />
+            : <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>{t('loading.weather')}</div>
         ) : item.widget.type === 'appdata_backup' ? (
           <AppdataBackupWidgetView stats={s ? (s as AppdataBackupWidgetStats) : null} />
         ) : null}
@@ -391,6 +348,33 @@ function DashboardWidgetCard({ item, editMode, groups, colSpan = 2, hiddenWidget
           onMoveToGroup={(groupId) => moveItemToGroup(item.id, groupId)}
         />
       )}
+    </div>
+  )
+}
+
+
+function AppdataBackupWidgetView({ stats }: { stats: AppdataBackupWidgetStats | null }) {
+  const isOk = !!stats && !('error' in stats) && (((stats as any).status === 'ok') || ((stats as any).healthy === true))
+  const isWarn = !!stats && !isOk
+  const color = isOk ? '#22c55e' : isWarn ? '#f59e0b' : '#f59e0b'
+  const label = isOk ? 'OK' : isWarn ? 'Pruefen' : 'Noch nicht angebunden'
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Appdata-Backup</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{label}</div>
+      </div>
+      <span
+        title={label}
+        style={{
+          width: 14,
+          height: 14,
+          borderRadius: '50%',
+          background: color,
+          boxShadow: `0 0 8px ${color}66`,
+          flexShrink: 0,
+        }}
+      />
     </div>
   )
 }
@@ -676,7 +660,6 @@ export function Dashboard({ onEdit }: Props) {
   const { items, groups, editMode, loading, reorder, reorderGroups, showVisibilityOverlay, setShowVisibilityOverlay } = useDashboardStore()
 
   const { loadStats, startPollingAll, stopPollingAll } = useWidgetStore()
-  const { loadContainers } = useDockerStore()
   const [guestVisibility, setGuestVisibility] = useState<{ services: string[]; arr: string[]; widgets: string[] }>({ services: [], arr: [], widgets: [] })
 
   const sensors = useSensors(
@@ -693,18 +676,10 @@ export function Dashboard({ onEdit }: Props) {
   useEffect(() => {
     const widgetItems = [...items, ...groups.flatMap(g => g.items)]
       .filter(i => i.type === 'widget') as DashboardWidgetItem[]
-    const statsPollable = widgetItems.filter(
-      i => i.widget.type !== 'docker_overview'
-        && i.widget.type !== 'custom_button'
-        && i.widget.type !== 'helbackup'
-        && i.widget.type !== 'weather'
-    )
-    const dockerPollable = widgetItems.filter(i => i.widget.type === 'docker_overview')
-    if (statsPollable.length === 0 && dockerPollable.length === 0) return
+    const statsPollable = widgetItems
+    if (statsPollable.length === 0) return
     Promise.all(statsPollable.map(i => loadStats(i.widget.id))).catch(() => {})
-    if (dockerPollable.length > 0) loadContainers().catch(() => {})
-    const allPollable = [...statsPollable, ...dockerPollable]
-    startPollingAll(allPollable.map(i => ({ id: i.widget.id, type: i.widget.type })))
+    startPollingAll(statsPollable.map(i => ({ id: i.widget.id, type: i.widget.type })))
     return () => stopPollingAll()
   }, [widgetItemIds])
 

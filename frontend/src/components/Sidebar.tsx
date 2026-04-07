@@ -1,13 +1,12 @@
 import React, { useEffect, useLayoutEffect, useState } from 'react'
 import {
-  LayoutDashboard, Container, Home,
-  ChevronLeft, ChevronRight, Network, Server, SlidersHorizontal} from 'lucide-react'
+  LayoutDashboard, Home,
+  ChevronLeft, ChevronRight, Network, Server, SlidersHorizontal,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useStore } from '../store/useStore'
 import { useWidgetStore } from '../store/useWidgetStore'
-import { useDockerStore } from '../store/useDockerStore'
-import type { Widget, ServerStats, HaEntityState, NpmStats, CalendarEntry } from '../types'
-import { containerCounts } from '../utils'
+import type { Widget, ServerStats } from '../types'
 import { LS_SIDEBAR_COLLAPSED } from '../constants'
 
 interface Props {
@@ -19,18 +18,13 @@ export function Sidebar({ page, onNavigate }: Props) {
   const { t } = useTranslation('common')
   const { settings, services } = useStore()
   const { widgets, loadStats, startPolling, stopPolling } = useWidgetStore()
-  const { loadContainers } = useDockerStore()
 
   const title = settings?.dashboard_title ?? 'MARDASH'
   const onlineCount = services.filter(s => s.last_status === 'online').length
   const offlineCount = services.filter(s => s.last_status === 'offline').length
 
   const sidebarWidgets = widgets.filter(w => w.display_location === 'sidebar')
-  const hasSidebarDocker = sidebarWidgets.some(w => w.type === 'docker_overview')
-  const sidebarStatsKey = sidebarWidgets
-    .filter(w => w.type !== 'docker_overview' && w.type !== 'custom_button' && w.type !== 'weather')
-    .map(w => w.id)
-    .join(',')
+  const sidebarStatsKey = sidebarWidgets.map(w => w.id).join(',')
 
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem(LS_SIDEBAR_COLLAPSED) === 'true' } catch { return false }
@@ -50,19 +44,9 @@ export function Sidebar({ page, onNavigate }: Props) {
 
   useEffect(() => {
     if (!sidebarStatsKey) return
-    const pollable = sidebarWidgets.filter(
-      w => w.type !== 'docker_overview' && w.type !== 'custom_button' && w.type !== 'weather'
-    )
-    pollable.forEach(w => { loadStats(w.id).catch(() => {}); startPolling(w.id, w.type) })
-    return () => pollable.forEach(w => stopPolling(w.id))
-  }, [sidebarStatsKey, sidebarWidgets, loadStats, startPolling, stopPolling])
-
-  useEffect(() => {
-    if (!hasSidebarDocker) return
-    loadContainers().catch(() => {})
-    const interval = setInterval(() => loadContainers().catch(() => {}), 30000)
-    return () => clearInterval(interval)
-  }, [hasSidebarDocker, loadContainers])
+    sidebarWidgets.forEach(w => { loadStats(w.id).catch(() => {}); startPolling(w.id, w.type) })
+    return () => sidebarWidgets.forEach(w => stopPolling(w.id))
+  }, [sidebarStatsKey])
 
   return (
     <>
@@ -89,7 +73,6 @@ export function Sidebar({ page, onNavigate }: Props) {
 
         <NavItem icon={<LayoutDashboard size={16} />} label={t('nav.dashboard')} active={page === 'dashboard'} onClick={() => onNavigate('dashboard')} collapsed={collapsed} />
         <NavItem icon={<SlidersHorizontal size={16} />} label="Control Center" active={page === 'control_center'} onClick={() => onNavigate('control_center')} collapsed={collapsed} />
-        <NavItem icon={<Container size={16} />} label={t('nav.docker')} active={page === 'docker'} onClick={() => onNavigate('docker')} collapsed={collapsed} />
         <NavItem icon={<Home size={16} />} label={t('nav.home_assistant')} active={page === 'home_assistant'} onClick={() => onNavigate('home_assistant')} collapsed={collapsed} />
         <NavItem icon={<Server size={16} />} label={t('nav.unraid')} active={page === 'unraid'} onClick={() => onNavigate('unraid')} collapsed={collapsed} />
         <NavItem icon={<Network size={16} />} label={t('nav.network')} active={page === 'network'} onClick={() => onNavigate('network')} collapsed={collapsed} />
@@ -139,7 +122,8 @@ function NavItem({ icon, label, active, onClick, collapsed }: {
         textAlign: 'left',
         background: 'none',
         fontFamily: 'var(--font-sans)',
-        justifyContent: collapsed ? 'center' : undefined}}
+        justifyContent: collapsed ? 'center' : undefined,
+      }}
     >
       {icon}
       {!collapsed && <span>{label}</span>}
@@ -153,8 +137,8 @@ function BottomNavBar({ page, onNavigate }: { page: string; onNavigate: (p: stri
   const items: { icon: React.ReactNode; label: string; target: string }[] = [
     { icon: <LayoutDashboard size={20} />, label: t('nav.dashboard'), target: 'dashboard' },
     { icon: <SlidersHorizontal size={20} />, label: 'Control', target: 'control_center' },
-    { icon: <Container size={20} />, label: t('nav.docker'), target: 'docker' },
-    { icon: <Home size={20} />, label: t('nav.home_assistant'), target: 'home_assistant' }]
+    { icon: <Home size={20} />, label: t('nav.home_assistant'), target: 'home_assistant' },
+  ]
 
   return (
     <nav className="bottom-nav" aria-label="Mobile navigation">
@@ -173,9 +157,8 @@ function BottomNavBar({ page, onNavigate }: { page: string; onNavigate: (p: stri
 }
 
 function SidebarWidget({ widget }: { widget: Widget }) {
-  const { t, i18n } = useTranslation('common')
+  const { i18n } = useTranslation('common')
   const { stats } = useWidgetStore()
-  const { containers } = useDockerStore()
   const s = stats[widget.id]
 
   const row = (label: string, value: string, color?: string) => (
@@ -190,45 +173,33 @@ function SidebarWidget({ widget }: { widget: Widget }) {
 
   let body: React.ReactNode = null
 
-  if (widget.type === 'docker_overview') {
-    const { running, stopped, restarting } = containerCounts(containers)
-    body = <>
-      {row('Total', String(containers.length))}
-      {row('Running', String(running), 'var(--status-online)')}
-      {stopped > 0 && row('Stopped', String(stopped), 'var(--text-muted)')}
-      {restarting > 0 && row('Restarting', String(restarting), '#f59e0b')}
-    </>
-  } else if (!s) {
-    return null
-  } else if (widget.type === 'server_status' && 'cpu' in (s as object)) {
+  if (!s) {
+    if (widget.type === 'appdata_backup') {
+      body = row('Status', 'Pruefen', '#f59e0b')
+    } else {
+      return null
+    }
+  } else if (widget.type === 'unraid_status' && 'cpu' in (s as object)) {
     const ss = s as ServerStats
+    const disk = (ss as any).disk
     body = <>
       {row('CPU', `${Math.round(ss.cpu.load * 10) / 10}%`, pctColor(ss.cpu.load))}
       {ss.ram.total > 0 && row('RAM', `${Math.round((ss.ram.used / ss.ram.total) * 100)}%`, pctColor(Math.round(ss.ram.used / ss.ram.total * 100)))}
-      {ss.disk.total > 0 && row('Disk', `${Math.round((ss.disk.used / ss.disk.total) * 100)}%`, pctColor(Math.round(ss.disk.used / ss.disk.total * 100)))}
+      {disk && disk.total > 0 && row('Disk', `${Math.round((disk.used / disk.total) * 100)}%`, pctColor(Math.round(disk.used / disk.total * 100)))}
     </>
-  } else if (widget.type === 'adguard_home') {
-    return null
-  } else if (widget.type === 'home_assistant' && Array.isArray(s)) {
-    const entities = s as HaEntityState[]
-    body = entities.slice(0, 4).map(e => row(e.label || e.friendly_name || e.entity_id, `${e.state}${e.unit ? ` ${e.unit}` : ''}`))
-  } else if (widget.type === 'nginx_pm' && 'proxy_hosts' in (s as object)) {
-    const npm = s as NpmStats
-    body = <>
-      {row('Proxy Hosts', String(npm.proxy_hosts))}
-      {row('Streams', String(npm.streams))}
-      {row('Zertifikate', String(npm.certificates))}
-    </>
-  } else if (widget.type === 'calendar' && Array.isArray(s)) {
-    const entries = s as CalendarEntry[]
-    body = entries.slice(0, 3).map(e => row(
-      new Date(`${e.date}T00:00:00`).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US', { day: '2-digit', month: '2-digit' }),
-      e.title
-    ))
   } else if (widget.type === 'weather' && 'temperature' in (s as object)) {
+    const ws = s as any
     body = <>
-      {row('Status', 'Vorübergehend deaktiviert')}
+      {row('Temp', `${ws.temperature}${ws.unit ?? '°C'}`)}
+      {row('Wind', `${ws.wind_speed ?? '—'} km/h`)}
     </>
+  } else if (widget.type === 'pollen') {
+    body = <>
+      {row('Level', String((s as any).level ?? '—'))}
+      {row('Region', String((s as any).source_region ?? '—'))}
+    </>
+  } else if (widget.type === 'appdata_backup') {
+    body = row('Status', (s as any).status === 'ok' ? 'OK' : 'Pruefen', (s as any).status === 'ok' ? 'var(--status-online)' : '#f59e0b')
   }
 
   if (!body) return null

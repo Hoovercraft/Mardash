@@ -11,7 +11,7 @@ import { api } from '../api'
 
 type TabId = 'apps' | 'integrationen' | 'widgets'
 type ControlCenterInstanceType = 'home_assistant' | 'unraid' | 'generic'
-type ControlCenterWidgetType = 'unraid_status' | 'docker_overview' | 'home_assistant' | 'appdata_backup'
+type ControlCenterWidgetType = 'unraid_status' | 'appdata_backup'
 
 
 const TAB_LIST: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
@@ -27,8 +27,6 @@ const INSTANCE_TYPES: ControlCenterInstanceType[] = [
 
 const WIDGET_TYPES: ControlCenterWidgetType[] = [
   'unraid_status',
-  'docker_overview',
-  'home_assistant',
   'appdata_backup',
 ]
 
@@ -1051,53 +1049,6 @@ function IntegrationenTab() {
               : 'Noch nicht eingerichtet.'}
           </div>
         </SectionCard>
-
-        <SectionCard title="Home Assistant" subtitle="Feste Integration für Entitäten und Home-Assistant-Widgets.">
-          <input className="form-input" placeholder="Name" value={haName} onChange={e => setHaName(e.target.value)} />
-          <input className="form-input" placeholder="URL" value={haUrl} onChange={e => setHaUrl(e.target.value)} />
-          <input
-            className="form-input"
-            placeholder="Home-Assistant-Token (nur neu setzen, wenn ändern)"
-            value={haToken}
-            onChange={e => setHaToken(e.target.value)}
-          />
-
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              className="btn btn-primary"
-              disabled={busy === 'home_assistant' || !haUrl.trim()}
-              onClick={() => { void saveIntegration('home_assistant') }}
-              style={{ gap: 8 }}
-            >
-              <PlugZap size={14} /> {haInstance ? 'Speichern' : 'Einrichten'}
-            </button>
-            <button
-              className="btn btn-ghost"
-              disabled={!haInstance}
-              onClick={() => { void testIntegration('home_assistant') }}
-              style={{ gap: 8 }}
-            >
-              {testState[haInstance?.id || '']?.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-              Testen
-            </button>
-            <button
-              className="btn btn-ghost"
-              disabled={!haInstance}
-              onClick={() => { void removeIntegration('home_assistant') }}
-              style={{ gap: 8 }}
-            >
-              <Trash2 size={14} /> Entfernen
-            </button>
-          </div>
-
-          <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)' }}>
-            {haInstance
-              ? (testState[haInstance.id]
-                  ? (testState[haInstance.id]?.ok ? 'Test erfolgreich.' : (testState[haInstance.id]?.error || 'Test fehlgeschlagen.'))
-                  : 'Integration eingerichtet.')
-              : 'Noch nicht eingerichtet.'}
-          </div>
-        </SectionCard>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 560px))', gap: 16 }}>
@@ -1190,7 +1141,6 @@ function WidgetsTab() {
   }, [])
 
   const unraidReady = instances.some(i => i.type === 'unraid')
-  const haReady = instances.some(i => i.type === 'home_assistant')
 
   const widgetByType = (type: ControlCenterWidgetType) => widgets.find(w => w.type === type) ?? null
 
@@ -1235,8 +1185,6 @@ function WidgetsTab() {
   }
 
   const unraidStatusWidget = widgetByType('unraid_status')
-  const dockerOverviewWidget = widgetByType('docker_overview')
-  const homeAssistantWidget = widgetByType('home_assistant')
   const appdataBackupWidget = widgetByType('appdata_backup')
 
   return (
@@ -1265,56 +1213,9 @@ function WidgetsTab() {
             </button>
           </div>
         </SectionCard>
-
-        <SectionCard title="Docker Übersicht" subtitle="Widget für Docker-Container auf Unraid.">
-          <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)' }}>
-            {renderStatus('docker_overview', unraidReady ? null : 'Erst Unraid einrichten.')}
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              className="btn btn-primary"
-              disabled={!unraidReady || busy === 'docker_overview'}
-              onClick={() => { void saveWidget('docker_overview', 'Docker Übersicht', 'none') }}
-              style={{ gap: 8 }}
-            >
-              <LayoutGrid size={14} /> {dockerOverviewWidget ? 'Speichern' : 'Einrichten'}
-            </button>
-            <button
-              className="btn btn-ghost"
-              disabled={!dockerOverviewWidget}
-              onClick={() => { void removeWidget('docker_overview') }}
-              style={{ gap: 8 }}
-            >
-              <Trash2 size={14} /> Entfernen
-            </button>
-          </div>
-        </SectionCard>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 560px))', gap: 16 }}>
-        <SectionCard title="Home Assistant" subtitle="Widget für Home-Assistant-Daten.">
-          <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)' }}>
-            {renderStatus('home_assistant', haReady ? null : 'Erst Home Assistant einrichten.')}
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              className="btn btn-primary"
-              disabled={!haReady || busy === 'home_assistant'}
-              onClick={() => { void saveWidget('home_assistant', 'Home Assistant', 'none') }}
-              style={{ gap: 8 }}
-            >
-              <LayoutGrid size={14} /> {homeAssistantWidget ? 'Speichern' : 'Einrichten'}
-            </button>
-            <button
-              className="btn btn-ghost"
-              disabled={!homeAssistantWidget}
-              onClick={() => { void removeWidget('home_assistant') }}
-              style={{ gap: 8 }}
-            >
-              <Trash2 size={14} /> Entfernen
-            </button>
-          </div>
-        </SectionCard>
 
         <SectionCard title="Appdata-Backup" subtitle="Widget für den Appdata-Backup-Status.">
           <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)' }}>
