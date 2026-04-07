@@ -409,7 +409,7 @@ export async function widgetsRoutes(app: FastifyInstance) {
   // POST /api/widgets — create (admin only)
   app.post('/api/widgets', { preHandler: [app.requireAdmin] }, async (req, reply) => {
     const { type, name, config = {}, show_in_topbar = false, display_location = 'none' } = req.body as CreateWidgetBody
-    if (!['server_status', 'adguard_home', 'docker_overview', 'custom_button', 'home_assistant', 'pihole', 'nginx_pm', 'home_assistant_energy', 'calendar', 'weather'].includes(type)) {
+    if (!['unraid_status', 'appdata_backup', 'weather', 'pollen', 'server_status'].includes(type)) {
       return reply.status(400).send({ error: 'Invalid widget type' })
     }
     if (!name?.trim()) return reply.status(400).send({ error: 'name is required' })
@@ -594,6 +594,50 @@ export async function widgetsRoutes(app: FastifyInstance) {
       return await fetchCombinedCalendar(instanceIds, callerGroup, daysAhead)
     }
 
+    if (row.type === 'appdata_backup') {
+      const source = db.prepare(
+        "SELECT * FROM backup_sources WHERE enabled = 1 AND type = 'ca_backup' ORDER BY created_at LIMIT 1"
+      ).get() as { config: string } | undefined
+
+      if (!source) {
+        return {
+          status: 'error',
+          label: 'Nicht eingerichtet',
+          sourceFound: false,
+          lastRun: null,
+          error: 'Keine CA-Backup-Quelle konfiguriert',
+        }
+      }
+
+      const unraid = db.prepare(
+        "SELECT url, api_key FROM unraid_instances WHERE enabled = 1 ORDER BY position, created_at LIMIT 1"
+      ).get() as { url: string; api_key: string } | undefined
+
+      const { checkCaBackup } = await import('./backup')
+      const baseConfig = safeJson(source.config, {} as Record<string, unknown>)
+      const backupConfig = unraid
+        ? { ...baseConfig, url: unraid.url, api_key: unraid.api_key }
+        : baseConfig
+      const result = await checkCaBackup(backupConfig)
+
+      return {
+        status: result.error ? 'error' : result.success === false ? 'warning' : result.success === true ? 'ok' : 'warning',
+        label: result.error ? 'Fehler' : result.success === true ? 'OK' : result.success === false ? 'Warnung' : 'Pruefen',
+        sourceFound: true,
+        lastRun: result.lastRun,
+        error: result.error,
+      }
+    }
+
+    if (row.type === 'pollen') {
+      return {
+        level: 'unknown',
+        label: 'Noch nicht angebunden',
+        source_region: null,
+        updated_at: null,
+      }
+    }
+
     if (row.type === 'weather') {
       const lat = typeof config.lat === 'number' ? config.lat : parseFloat(String(config.lat ?? ''))
       const lon = typeof config.lon === 'number' ? config.lon : parseFloat(String(config.lon ?? ''))
@@ -643,14 +687,17 @@ export async function widgetsRoutes(app: FastifyInstance) {
       }
     }
 
-    // server_status (default)
-    const disks: DiskConfig[] = Array.isArray(config.disks) ? config.disks : []
-    const [cpu, ram, diskStats] = await Promise.all([
-      getCpuLoad(),
-      getRam(),
-      getDiskStats(disks),
-    ])
-    return { cpu: { load: cpu }, ram, disks: diskStats }
+    if (row.type === 'unraid_status' || row.type === 'server_status') {
+      const disks: DiskConfig[] = Array.isArray(config.disks) ? config.disks : []
+      const [cpu, ram, diskStats] = await Promise.all([
+        getCpuLoad(),
+        getRam(),
+        getDiskStats(disks),
+      ])
+      return { cpu: { load: cpu }, ram, disks: diskStats }
+    }
+
+    return {}
   })
 
   // POST /api/widgets/:id/icon — upload icon image (base64 JSON, admin only)

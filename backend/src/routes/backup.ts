@@ -50,31 +50,152 @@ const httpAgent = new Agent({
   connect: { rejectUnauthorized: false },
 })
 
-async function checkCaBackup(config: Record<string, unknown>): Promise<{
+async function readUnraidLog(url: string, apiKey: string, logPath: string): Promise<string | null> {
+  const baseUrl = `${url.replace(/\/$/, '')}/graphql`
+
+  const gql = async (query: string, variables?: Record<string, unknown>) => {
+    const res = await undiciRequest(baseUrl, {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, variables }),
+      dispatcher: httpAgent,
+    })
+
+    const body = await res.body.json() as {
+      data?: Record<string, unknown>
+      errors?: Array<{ message?: string }>
+    }
+
+    if (Array.isArray(body.errors) && body.errors.length > 0) return null
+    return body.data ?? null
+  }
+
+  const readPath = async (candidatePath: string): Promise<string | null> => {
+    const data = await gql(
+      `query($path: String!, $lines: Int) {
+        logFile(path: $path, lines: $lines) { path content totalLines startLine }
+      }`,
+      { path: candidatePath, lines: 400 }
+    ) as { logFile?: { content?: string | null } } | null
+
+    const content = data?.logFile?.content
+    return typeof content === 'string' && content.trim() ? content : null
+  }
+
+  const direct = await readPath(logPath)
+  if (direct) return direct
+
+  const filesData = await gql(
+    `query {
+      logFiles { name path size modifiedAt }
+    }`
+  ) as { logFiles?: Array<{ name?: string | null; path?: string | null; modifiedAt?: string | null }> } | null
+
+  const files = Array.isArray(filesData?.logFiles) ? filesData!.logFiles! : []
+  if (files.length === 0) return null
+
+  const requestedBase = path.posix.basename(logPath).toLowerCase()
+  const requestedFull = logPath.toLowerCase()
+
+  const score = (name: string, p: string): number => {
+    const n = name.toLowerCase()
+    const lp = p.toLowerCase()
+
+    if (lp === requestedFull) return 1000
+    if (n === requestedBase) return 900
+
+    let s = 0
+    if (n.includes('ca_backup')) s += 400
+    if (n == 'backup.log') s += 350
+    if (n.includes('backup')) s += 250
+    if (n.includes('appdata')) s += 200
+    if (lp.includes('backup')) s += 120
+    if (lp.includes('appdata')) s += 80
+    if (n.endsWith('.log')) s += 20
+    return s
+  }
+
+  const candidates = files
+    .filter(f => typeof f.path === 'string' && f.path.trim())
+    .map(f => ({
+      name: typeof f.name === 'string' ? f.name : '',
+      path: f.path as string,
+      modifiedAt: typeof f.modifiedAt === 'string' ? f.modifiedAt : '',
+      score: score(typeof f.name === 'string' ? f.name : '', f.path as string),
+    }))
+    .filter(f => f.score > 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+      return String(b.modifiedAt).localeCompare(String(a.modifiedAt))
+    })
+
+  for (const candidate of candidates) {
+    const content = await readPath(candidate.path)
+    if (content) return content
+  }
+
+  return null
+}
+
+export async function checkCaBackup(config: Record<string, unknown>): Promise<{
   lastRun: string | null; success: boolean | null; size: string | null; error: string | null; details?: unknown
 }> {
-  const logPath = (config.logPath as string | undefined) || '/boot/logs/CA_backup.log'
-  try {
-    const content = await fsp.readFile(logPath, 'utf-8')
-    const lines = content.split('\n').filter(l => l.trim())
-    let lastRun: string | null = null
-    let success: boolean | null = null
-    let size: string | null = null
-    for (const line of lines) {
-      const dateMatch = line.match(/\d{4}-\d{2}-\d{2}/)
-      if (dateMatch) lastRun = dateMatch[0]
-      if (/success|completed|done/i.test(line)) success = true
-      if (/error|fail|failed/i.test(line)) success = false
-      const sizeMatch = line.match(/(\d+(?:\.\d+)?\s*(?:GB|MB|KB))/i)
-      if (sizeMatch) size = sizeMatch[1]
+  const configuredPath = (config.logPath as string | undefined) || '/mnt/user/logs/status'
+
+  const statusDirs = Array.from(new Set([
+    configuredPath.endsWith('.log') ? path.posix.join(path.posix.dirname(configuredPath), 'status') : configuredPath,
+    '/mnt/user/logs/status',
+  ].filter(Boolean)))
+
+  const markerRegex = /^(\d{8})_(gut|warnung|fehler)\.log$/i
+
+  for (const dir of statusDirs) {
+    try {
+      const entries = await fsp.readdir(dir, { withFileTypes: true })
+      const markers = entries
+        .filter(e => e.isFile() && markerRegex.test(e.name))
+        .map(e => {
+          const m = e.name.match(markerRegex)!
+          return {
+            name: e.name,
+            date: m[1],
+            status: m[2].toLowerCase(),
+            fullPath: path.posix.join(dir, e.name),
+          }
+        })
+        .sort((a, b) => b.date.localeCompare(a.date) || b.name.localeCompare(a.name))
+
+      if (markers.length > 0) {
+        const latest = markers[0]
+        const yyyy = latest.date.slice(0, 4)
+        const mm = latest.date.slice(4, 6)
+        const dd = latest.date.slice(6, 8)
+
+        return {
+          lastRun: `${dd}.${mm}.${yyyy}`,
+          success: latest.status === 'gut',
+          size: null,
+          error: latest.status === 'fehler' ? 'Status-Marker meldet Fehler' : null,
+          details: {
+            path: latest.fullPath,
+            source: 'status_marker',
+            marker: latest.name,
+          },
+        }
+      }
+    } catch {
+      // next dir
     }
-    if (lastRun) {
-      const diff = Date.now() - new Date(lastRun).getTime()
-      if (diff > 7 * 24 * 60 * 60 * 1000) success = false
-    }
-    return { lastRun, success, size, error: null, details: { lines: lines.slice(-20) } }
-  } catch {
-    return { lastRun: null, success: null, size: null, error: `Log nicht gefunden — ${logPath} verfügbar?` }
+  }
+
+  return {
+    lastRun: null,
+    success: null,
+    size: null,
+    error: `Kein Status-Marker gefunden — geprüft: ${statusDirs.join(', ')}`,
   }
 }
 
@@ -206,7 +327,13 @@ export async function backupRoutes(app: FastifyInstance) {
       let result: { lastRun: string | null; success: boolean | null; size: string | null; error: string | null; details?: unknown }
 
       if (source.type === 'ca_backup') {
-        result = await checkCaBackup(config)
+        const unraid = db.prepare(
+          "SELECT url, api_key FROM unraid_instances WHERE enabled = 1 ORDER BY position, created_at LIMIT 1"
+        ).get() as { url: string; api_key: string } | undefined
+        const effectiveConfig = unraid
+          ? { ...config, url: unraid.url, api_key: unraid.api_key }
+          : config
+        result = await checkCaBackup(effectiveConfig)
       } else if (source.type === 'duplicati') {
         result = await checkDuplicati(config)
       } else if (source.type === 'kopia') {
@@ -300,7 +427,13 @@ export async function checkAllBackupSources(): Promise<void> {
       const config = safeJson<Record<string, unknown>>(source.config, {} as Record<string, unknown>)
       let status: string | null = null
       if (source.type === 'ca_backup') {
-        const r = await checkCaBackup(config)
+        const unraid = db.prepare(
+          "SELECT url, api_key FROM unraid_instances WHERE enabled = 1 ORDER BY position, created_at LIMIT 1"
+        ).get() as { url: string; api_key: string } | undefined
+        const effectiveConfig = unraid
+          ? { ...config, url: unraid.url, api_key: unraid.api_key }
+          : config
+        const r = await checkCaBackup(effectiveConfig)
         status = r.error ? 'error' : r.success === false ? 'warning' : r.success === true ? 'ok' : null
       } else if (source.type === 'duplicati') {
         const r = await checkDuplicati(config)

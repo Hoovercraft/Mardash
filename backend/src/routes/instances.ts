@@ -100,7 +100,7 @@ async function testConnection(type: InstanceType, url: string, config: Record<st
     if (UNRAID_TYPES.includes(type)) {
       const res = await fetch(`${base}/graphql`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${config.api_key ?? ''}`, 'Content-Type': 'application/json' },
+        headers: { 'x-api-key': config.api_key ?? '', 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: 'query { online }' }),
         signal: timeout,
       })

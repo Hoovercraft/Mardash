@@ -10,6 +10,7 @@ services:
       - "8282:8282"
     volumes:
       - ${HOME}/Projekte/Mardash-data:/data
+      - /mnt/user/logs:/mnt/user/logs:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       SECRET_KEY: ${MARDASH_SECRET_KEY}

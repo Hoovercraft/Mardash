@@ -11,7 +11,7 @@ import { api } from '../api'
 
 type TabId = 'apps' | 'integrationen' | 'widgets'
 type ControlCenterInstanceType = 'home_assistant' | 'unraid' | 'generic'
-type ControlCenterWidgetType = 'unraid_status' | 'appdata_backup'
+type ControlCenterWidgetType = 'unraid_status' | 'appdata_backup' | 'weather' | 'pollen'
 
 
 const TAB_LIST: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
@@ -28,6 +28,8 @@ const INSTANCE_TYPES: ControlCenterInstanceType[] = [
 const WIDGET_TYPES: ControlCenterWidgetType[] = [
   'unraid_status',
   'appdata_backup',
+  'weather',
+  'pollen',
 ]
 
 const FIXED_SERVICE_GROUPS = [
@@ -711,7 +713,7 @@ function EntriesTab() {
 function AppdataBackupTab({ unraidReady }: { unraidReady: boolean }) {
   const [sourceId, setSourceId] = useState<string | null>(null)
   const [name, setName] = useState('Appdata-Backup')
-  const [logPath, setLogPath] = useState('/boot/logs/CA_backup.log')
+  const [logPath, setLogPath] = useState('/mnt/user/logs/status')
   const [enabled, setEnabled] = useState(true)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -729,7 +731,7 @@ function AppdataBackupTab({ unraidReady }: { unraidReady: boolean }) {
           setSourceId(ca.id)
           setName(ca.name)
           setEnabled(ca.enabled)
-          setLogPath((ca.config?.logPath as string) || '/boot/logs/CA_backup.log')
+          setLogPath((ca.config?.logPath as string) || '/mnt/user/logs/status')
         }
         const data = await (await import('../api')).api.backup.status()
         const found = data.sources.find((s: BackupStatusResult) => s.type === 'ca_backup') ?? null
@@ -771,7 +773,7 @@ function AppdataBackupTab({ unraidReady }: { unraidReady: boolean }) {
   }
 
   return (
-    <SectionCard title="Appdata-Backup" subtitle="Überwacht das Unraid CA Backup Log für Appdata-Backups.">
+    <SectionCard title="Appdata-Backup" subtitle="Liest Status-Marker für Appdata-Backups aus /mnt/user/logs/status.">
         {!unraidReady && (
           <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)', fontSize: 13 }}>
             Erst Unraid einrichten. Danach kann Appdata-Backup aktiviert und geprüft werden.
@@ -779,7 +781,7 @@ function AppdataBackupTab({ unraidReady }: { unraidReady: boolean }) {
         )}
 
         <input className="form-input" placeholder="Name" value={name} onChange={e => setName(e.target.value)} disabled={!unraidReady} />
-        <input className="form-input" placeholder="/boot/logs/CA_backup.log" value={logPath} onChange={e => setLogPath(e.target.value)} disabled={!unraidReady} />
+        <input className="form-input" placeholder="/mnt/user/logs/status" value={logPath} onChange={e => setLogPath(e.target.value)} disabled={!unraidReady} />
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
           <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} disabled={!unraidReady} />
           Aktiv
@@ -1049,6 +1051,53 @@ function IntegrationenTab() {
               : 'Noch nicht eingerichtet.'}
           </div>
         </SectionCard>
+
+        <SectionCard title="Home Assistant" subtitle="Feste Integration für Home-Assistant-Zugriff.">
+          <input className="form-input" placeholder="Name" value={haName} onChange={e => setHaName(e.target.value)} />
+          <input className="form-input" placeholder="URL" value={haUrl} onChange={e => setHaUrl(e.target.value)} />
+          <input
+            className="form-input"
+            placeholder="Long-Lived Access Token (nur neu setzen, wenn ändern)"
+            value={haToken}
+            onChange={e => setHaToken(e.target.value)}
+          />
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-primary"
+              disabled={busy === 'home_assistant' || !haUrl.trim()}
+              onClick={() => { void saveIntegration('home_assistant') }}
+              style={{ gap: 8 }}
+            >
+              <PlugZap size={14} /> {haInstance ? 'Speichern' : 'Einrichten'}
+            </button>
+            <button
+              className="btn btn-ghost"
+              disabled={!haInstance}
+              onClick={() => { void testIntegration('home_assistant') }}
+              style={{ gap: 8 }}
+            >
+              {testState[haInstance?.id || '']?.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+              Testen
+            </button>
+            <button
+              className="btn btn-ghost"
+              disabled={!haInstance}
+              onClick={() => { void removeIntegration('home_assistant') }}
+              style={{ gap: 8 }}
+            >
+              <Trash2 size={14} /> Entfernen
+            </button>
+          </div>
+
+          <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)' }}>
+            {haInstance
+              ? (testState[haInstance.id]
+                  ? (testState[haInstance.id]?.ok ? 'Test erfolgreich.' : (testState[haInstance.id]?.error || 'Test fehlgeschlagen.'))
+                  : 'Integration eingerichtet.')
+              : 'Noch nicht eingerichtet.'}
+          </div>
+        </SectionCard>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 560px))', gap: 16 }}>
@@ -1112,13 +1161,10 @@ function IntegrationenTab() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Pollen" subtitle="Feste Integration für spätere Pollen-Daten und Widgets.">
+        <SectionCard title="Pollen" subtitle="Keine separate Integration nötig. Das Widget wird direkt unter Widgets verwaltet.">
           <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)', fontSize: 13 }}>
-            Dieser Block ist vorbereitet. Die eigentliche Pollen-Datenquelle kommt im nächsten Schritt.
+            Aktuell ist keine zusätzliche Integrations-Konfiguration erforderlich. Das Pollen-Widget kann direkt unter Widgets angelegt werden.
           </div>
-          <button className="btn btn-ghost" disabled style={{ gap: 8 }}>
-            <PlugZap size={14} /> Bald verfügbar
-          </button>
         </SectionCard>
       </div>
 
@@ -1186,6 +1232,24 @@ function WidgetsTab() {
 
   const unraidStatusWidget = widgetByType('unraid_status')
   const appdataBackupWidget = widgetByType('appdata_backup')
+  const weatherWidget = widgetByType('weather')
+  const pollenWidget = widgetByType('pollen')
+
+  const saveWeatherWidget = async () => {
+    if (!weatherWidget) return
+    setBusy('weather')
+    try {
+      await updateWidget(weatherWidget.id, {
+        name: weatherWidget.name || 'Wetter',
+        config: weatherWidget.config,
+        display_location: weatherWidget.display_location ?? 'none',
+        show_in_topbar: (weatherWidget.display_location ?? 'none') === 'topbar',
+      })
+      await loadWidgets()
+    } finally {
+      setBusy(null)
+    }
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1216,6 +1280,54 @@ function WidgetsTab() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 560px))', gap: 16 }}>
+
+        <SectionCard title="Wetter" subtitle="Widget für Wetterdaten.">
+          <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)' }}>
+            {renderStatus('weather', weatherWidget ? null : 'Erst Wetter unter Integrationen einrichten.')}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-primary"
+              disabled={!weatherWidget || busy === 'weather'}
+              onClick={() => { void saveWeatherWidget() }}
+              style={{ gap: 8 }}
+            >
+              <LayoutGrid size={14} /> {weatherWidget ? 'Speichern' : 'Erst unter Integrationen einrichten'}
+            </button>
+            <button
+              className="btn btn-ghost"
+              disabled={!weatherWidget}
+              onClick={() => { void removeWidget('weather') }}
+              style={{ gap: 8 }}
+            >
+              <Trash2 size={14} /> Entfernen
+            </button>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Pollen" subtitle="Widget für Pollen-Informationen.">
+          <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)' }}>
+            {renderStatus('pollen', null)}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-primary"
+              disabled={busy === 'pollen'}
+              onClick={() => { void saveWidget('pollen', 'Pollen', 'none') }}
+              style={{ gap: 8 }}
+            >
+              <LayoutGrid size={14} /> {pollenWidget ? 'Speichern' : 'Einrichten'}
+            </button>
+            <button
+              className="btn btn-ghost"
+              disabled={!pollenWidget}
+              onClick={() => { void removeWidget('pollen') }}
+              style={{ gap: 8 }}
+            >
+              <Trash2 size={14} /> Entfernen
+            </button>
+          </div>
+        </SectionCard>
 
         <SectionCard title="Appdata-Backup" subtitle="Widget für den Appdata-Backup-Status.">
           <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)' }}>
