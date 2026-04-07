@@ -4,16 +4,17 @@ import { useDashboardStore } from '../store/useDashboardStore'
 import { useInstanceStore } from '../store/useInstanceStore'
 import { useWidgetStore } from '../store/useWidgetStore'
 import { useConfirm } from '../components/ConfirmDialog'
-import type { InstanceType, Group, Service, Instance, BackupSource, BackupStatusResult } from '../types'
-import type { WidgetType } from '../types'
-import { Plus, AppWindow, Boxes, PlugZap, LayoutGrid, Pencil, Trash2, ExternalLink, Download, Upload, CheckCircle2, XCircle, HardDrive, RefreshCw } from 'lucide-react'
-import { api, getIconUrl } from '../api'
+import type { Group, Service, Instance, BackupSource, BackupStatusResult } from '../types'
+import { Plus, AppWindow, PlugZap, LayoutGrid, Pencil, Trash2, Download, Upload, CheckCircle2, XCircle, HardDrive, RefreshCw } from 'lucide-react'
+import { api } from '../api'
 
-type TabId = 'apps' | 'integrationen' | 'widgets' | 'dashboard' | 'design' | 'appdata_backup' | 'topbar'
+type TabId = 'apps' | 'integrationen' | 'widgets' | 'design' | 'appdata_backup' | 'topbar'
+type ControlCenterInstanceType = 'home_assistant' | 'unraid' | 'generic'
+type ControlCenterWidgetType = 'server_status' | 'docker_overview' | 'home_assistant' | 'appdata_backup'
+
 
 const TAB_LIST: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
   { id: 'apps', label: 'Einträge', icon: <AppWindow size={14} /> },
-  { id: 'dashboard', label: 'Dashboard', icon: <Boxes size={14} /> },
   { id: 'integrationen', label: 'Integrationen', icon: <PlugZap size={14} /> },
   { id: 'widgets', label: 'Widgets', icon: <LayoutGrid size={14} /> },
   { id: 'topbar', label: 'Topbar', icon: <LayoutGrid size={14} /> },
@@ -21,18 +22,23 @@ const TAB_LIST: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
   { id: 'design', label: 'Design', icon: <LayoutGrid size={14} /> },
 ]
 
-const INSTANCE_TYPES: InstanceType[] = [
+const INSTANCE_TYPES: ControlCenterInstanceType[] = [
   'home_assistant',
   'unraid',
   'generic',
 ]
 
-const WIDGET_TYPES: WidgetType[] = [
+const WIDGET_TYPES: ControlCenterWidgetType[] = [
   'server_status',
   'docker_overview',
-    'weather',
   'home_assistant',
-          'appdata_backup',
+  'appdata_backup',
+]
+
+const FIXED_SERVICE_GROUPS = [
+  'Externe Server',
+  'Interne Dienste',
+  'Internet',
 ]
 
 function TabBar({ active, onChange }: { active: TabId; onChange: (t: TabId) => void }) {
@@ -122,6 +128,10 @@ function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
 export function ControlCenterPage() {
   const [tab, setTab] = useState<TabId>(() => {
     const v = localStorage.getItem('mardash.controlcenter.tab')
+    if (v === 'dashboard') {
+      localStorage.setItem('mardash.controlcenter.tab', 'apps')
+      return 'apps'
+    }
     return (v as TabId) || 'apps'
   })
 
@@ -131,7 +141,6 @@ export function ControlCenterPage() {
       {tab === 'apps' && <EntriesTab />}
       {tab === 'integrationen' && <IntegrationenTab />}
       {tab === 'widgets' && <WidgetsTab />}
-      {tab === 'dashboard' && <DashboardTab />}
       {tab === 'topbar' && <TopbarTab />}
       {tab === 'appdata_backup' && <AppdataBackupTab />}
       {tab === 'design' && <DesignTab />}
@@ -141,7 +150,7 @@ export function ControlCenterPage() {
 
 function EntriesTab() {
   const { groups, services, loadAll, createService, updateService, deleteService } = useStore()
-  const { createGroup, loadDashboard } = useDashboardStore()
+  const { loadDashboard } = useDashboardStore()
   const { confirm } = useConfirm()
 
   const [serviceName, setServiceName] = useState('')
@@ -158,6 +167,18 @@ function EntriesTab() {
   const [serviceExporting, setServiceExporting] = useState(false)
   const [serviceImporting, setServiceImporting] = useState(false)
   const serviceImportRef = useRef<HTMLInputElement | null>(null)
+
+  const ensureFixedGroups = async () => {
+    const currentGroups = await api.groups.list()
+    const existing = new Set(currentGroups.map(g => g.name))
+    const missing = FIXED_SERVICE_GROUPS.filter(name => !existing.has(name))
+    if (missing.length === 0) return
+
+    for (const name of missing) {
+      await api.groups.create({ name })
+    }
+    await loadAll()
+  }
 
   const refreshDashboardServices = async () => {
     const data = await api.dashboard.list()
@@ -181,8 +202,24 @@ function EntriesTab() {
     refreshDashboardServices().catch(() => {})
   }, [])
 
+  useEffect(() => {
+    if (groups.length > 0) return
+    ;(async () => {
+      await ensureFixedGroups()
+    })().catch(() => {})
+  }, [groups.length])
+
+  useEffect(() => {
+    if (groups.length === 0) return
+    const hasAllFixedGroups = FIXED_SERVICE_GROUPS.every(name => groups.some(g => g.name === name))
+    if (hasAllFixedGroups) return
+    ensureFixedGroups().catch(() => {})
+  }, [groups])
+
   const sortedGroups = useMemo(
-    () => [...groups].sort((a, b) => a.name.localeCompare(b.name)),
+    () => FIXED_SERVICE_GROUPS
+      .map(name => groups.find(g => g.name === name))
+      .filter((g): g is Group => Boolean(g)),
     [groups]
   )
 
@@ -795,89 +832,11 @@ function DesignTab() {
   )
 }
 
-function DashboardTab() {
-  const { settings, updateSettings, loadSettings, loadAll, groups } = useStore()
-  const { createGroup, loadDashboard } = useDashboardStore()
-  const [dashboardTitle, setDashboardTitle] = useState('')
-  const [titleBusy, setTitleBusy] = useState(false)
-  const [dashboardGroupName, setDashboardGroupName] = useState('')
-  const [groupBusy, setGroupBusy] = useState(false)
-
-  useEffect(() => {
-    loadSettings().catch(() => {})
-    loadAll().catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    setDashboardTitle(settings?.dashboard_title ?? 'Mardash')
-  }, [settings?.dashboard_title])
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 560px))', gap: 16 }}>
-      <SectionCard title="Dashboard" subtitle="Lokale Dashboard-Grundeinstellungen.">
-        <input className="form-input" placeholder="Dashboard-Titel" value={dashboardTitle} onChange={e => setDashboardTitle(e.target.value)} />
-        <button
-          className="btn btn-primary"
-          disabled={titleBusy || !dashboardTitle.trim()}
-          onClick={async () => {
-            setTitleBusy(true)
-            try {
-              await updateSettings({ dashboard_title: dashboardTitle.trim() })
-              await loadSettings()
-            } finally {
-              setTitleBusy(false)
-            }
-          }}
-          style={{ gap: 8 }}
-        >
-          <Boxes size={14} /> Titel speichern
-        </button>
-      </SectionCard>
-
-      <SectionCard title="Dashboard-Gruppen" subtitle="Gruppen anlegen und vorhandene Gruppen sehen.">
-        <input className="form-input" placeholder="Gruppenname" value={dashboardGroupName} onChange={e => setDashboardGroupName(e.target.value)} />
-        <button
-          className="btn btn-primary"
-          disabled={groupBusy || !dashboardGroupName.trim()}
-          onClick={async () => {
-            setGroupBusy(true)
-            try {
-              await createGroup(dashboardGroupName.trim())
-              setDashboardGroupName('')
-              await loadDashboard()
-              await loadAll()
-              await loadSettings()
-            } finally {
-              setGroupBusy(false)
-            }
-          }}
-          style={{ gap: 8 }}
-        >
-          <Boxes size={14} /> Gruppe anlegen
-        </button>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, maxHeight: 320, overflow: 'auto' }}>
-          {groups.length === 0 ? (
-            <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)' }}>
-              Noch keine Gruppen vorhanden.
-            </div>
-          ) : (
-            [...groups].sort((a, b) => a.name.localeCompare(b.name)).map(g => (
-              <div key={g.id} className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)' }}>
-                <div style={{ fontWeight: 600 }}>{g.name}</div>
-              </div>
-            ))
-          )}
-        </div>
-      </SectionCard>
-    </div>
-  )
-}
 
 function IntegrationenTab() {
   const { instances, createInstance, updateInstance, deleteInstance, loadInstances, testInstance } = useInstanceStore()
 
-  const [type, setType] = useState<InstanceType>('generic')
+  const [type, setType] = useState<ControlCenterInstanceType>('generic')
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
   const [token, setToken] = useState('')
@@ -927,7 +886,7 @@ function IntegrationenTab() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 560px)', gap: 16 }}>
       <SectionCard title="Instanz anlegen / bearbeiten" subtitle="Zentrale Anlage für Integrationen und externe Dienste.">
-        <select className="form-input" value={type} onChange={e => setType(e.target.value as InstanceType)}>
+        <select className="form-input" value={type} onChange={e => setType(e.target.value as ControlCenterInstanceType)}>
           {INSTANCE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
         </select>
         <input className="form-input" placeholder="Name" value={name} onChange={e => setName(e.target.value)} />

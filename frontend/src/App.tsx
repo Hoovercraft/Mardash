@@ -3,7 +3,6 @@ import type { ErrorInfo, ReactNode } from 'react'
 import { ToastProvider } from './components/Toast'
 import { ConfirmDialogProvider } from './components/ConfirmDialog'
 import { useStore } from './store/useStore'
-import type { Service } from './types'
 import { AppShell } from './app/AppShell'
 import { AppContent } from './app/AppContent'
 import { AppBoot } from './app/AppBoot'
@@ -36,8 +35,6 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 export default function App() {
   const { authReady, myBackground, checkAllServices } = useStore()
   const [page, setPage] = useState('dashboard')
-  const [showModal, setShowModal] = useState(false)
-  const [editService, setEditService] = useState<Service | null>(null)
   const [checking, setChecking] = useState(false)
   const [showAddWidget, setShowAddWidget] = useState(false)
   const [showAddHaPanel, setShowAddHaPanel] = useState(false)
@@ -48,18 +45,11 @@ export default function App() {
     setChecking(false)
   }
 
-  const handleAddService = () => {
-    setEditService(null)
-    setShowModal(true)
-    setPage('services')
+  const handleEditService = (serviceId: string) => {
+    localStorage.setItem('mardash.controlcenter.editServiceId', serviceId)
+    localStorage.setItem('mardash.controlcenter.tab', 'apps')
+    setPage('control_center')
   }
-
-  const handleEditService = (service: Service) => {
-    setEditService(service)
-    setShowModal(true)
-  }
-
-  void handleEditService
 
   return (
     <ErrorBoundary>
@@ -94,10 +84,7 @@ export default function App() {
             >
               <AppContent
                 page={page}
-                showModal={showModal}
-                setShowModal={setShowModal}
-                editService={editService}
-                setEditService={setEditService}
+                onEditService={handleEditService}
                 showAddWidget={showAddWidget}
                 setShowAddWidget={setShowAddWidget}
                 showAddHaPanel={showAddHaPanel}

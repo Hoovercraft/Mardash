@@ -1,6 +1,4 @@
 import { Suspense, lazy } from 'react'
-import { ServiceModal } from '../components/ServiceModal'
-import type { Service } from '../types'
 
 const Dashboard = lazy(() => import('../pages/Dashboard').then(m => ({ default: m.Dashboard })))
 const ServicesPage = lazy(() => import('../pages/ServicesPage').then(m => ({ default: m.ServicesPage })))
@@ -16,15 +14,9 @@ const ControlCenterPage = lazy(() => import('../pages/ControlCenter').then(m => 
 
 interface Props {
   page: string
-  showModal: boolean
-  setShowModal: (v: boolean) => void
-  editService: Service | null
-  setEditService: (s: Service | null) => void
-  showAddWidget: boolean
-  setShowAddWidget: (v: boolean) => void
+  onEditService: (serviceId: string) => void
   showAddHaPanel: boolean
   setShowAddHaPanel: (v: boolean) => void
-  setShowChangelog: (v: boolean) => void
 }
 
 function PageLoading() {
@@ -38,24 +30,16 @@ function PageLoading() {
 export function AppContent(props: Props) {
   const {
     page,
-    showModal,
-    setShowModal,
-    editService,
-    setEditService,
+    onEditService,
     showAddHaPanel,
     setShowAddHaPanel,
-    setShowChangelog} = props
-
-  const closeModal = () => {
-    setShowModal(false)
-    setEditService(null)
-  }
+  } = props
 
   return (
     <>
       <Suspense fallback={<PageLoading />}>
         {page === 'dashboard' && <Dashboard />}
-        {page === 'services' && <ServicesPage />}
+        {page === 'services' && <ServicesPage onEdit={(service) => onEditService(service.id)} />}
         {page === 'docker' && <DockerPage />}
         {page === 'home_assistant' && <HaPage showAddPanel={showAddHaPanel} onCloseAddPanel={() => setShowAddHaPanel(false)} />}
         {page === 'network' && <NetworkPage />}
@@ -66,13 +50,6 @@ export function AppContent(props: Props) {
         {page === 'control_center' && <ControlCenterPage />}
         {page === 'settings' && <SettingsPage />}
       </Suspense>
-
-      {showModal && (
-        <ServiceModal
-          service={editService}
-          onClose={closeModal}
-        />
-      )}
 
     </>
   )

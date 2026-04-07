@@ -6,7 +6,7 @@ import { useWidgetStore } from '../store/useWidgetStore'
 import { useDockerStore } from '../store/useDockerStore'
 import { useUnraidStore } from '../store/useUnraidStore'
 import { api } from '../api'
-import type { ServerStats, AdGuardStats, HaEntityState, NpmStats, CalendarEntry, WeatherStats, WeatherWidgetConfig, PollenTopbarStats } from '../types'
+import type { ServerStats, HaEntityState, NpmStats, CalendarEntry } from '../types'
 import { containerCounts } from '../utils'
 
 const WEATHER_ICONS: Record<number, string> = {
@@ -50,7 +50,7 @@ export function Topbar({ page: _page, onNavigate }: Props) {
   const topbarWidgets = widgets.filter(w => w.display_location === 'topbar')
   const hasDockerTopbar = topbarWidgets.some(w => w.type === 'docker_overview')
   const statsWidgetKey = topbarWidgets
-    .filter(w => w.type !== 'docker_overview')
+    .filter(w => w.type !== 'docker_overview' && w.type !== 'weather')
     .map(w => w.id)
     .join(',')
 
@@ -70,7 +70,9 @@ export function Topbar({ page: _page, onNavigate }: Props) {
 
   useEffect(() => {
     if (!statsWidgetKey) return
-    const pollable = topbarWidgets.filter(w => w.type !== 'docker_overview' && w.type !== 'custom_button')
+    const pollable = topbarWidgets.filter(
+      w => w.type !== 'docker_overview' && w.type !== 'custom_button' && w.type !== 'weather'
+    )
     pollable.forEach(w => {
       loadStats(w.id).catch(() => {})
       startPolling(w.id, w.type)
@@ -91,13 +93,12 @@ export function Topbar({ page: _page, onNavigate }: Props) {
     return () => clearInterval(interval)
   }, [unraidInstances, pingAllUnraid])
 
-  const openControlCenterTab = (tab: 'apps' | 'dashboard' | 'integrationen' | 'widgets' | 'topbar' | 'appdata_backup' | 'design') => {
+  const openControlCenterTab = (tab: 'apps' | 'integrationen' | 'widgets' | 'topbar' | 'appdata_backup' | 'design') => {
     localStorage.setItem('mardash.controlcenter.tab', tab)
     onNavigate?.('control_center')
   }
 
   const [appdataBackup, setAppdataBackup] = React.useState<null | { status: 'ok' | 'warning' | 'error'; label: string }>(null)
-  const [pollen, setPollen] = React.useState<PollenTopbarStats | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -110,29 +111,6 @@ export function Topbar({ page: _page, onNavigate }: Props) {
     }
     load().catch(() => {})
     const interval = setInterval(() => { load().catch(() => {}) }, 60000)
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await api.pollen.status()
-        setPollen(res)
-      } catch (e) {
-        setPollen({
-          hasel: null,
-          birke: null,
-          graeser: null,
-          level: 'unknown',
-          label: 'Unklar',
-          source_region: null,
-          updated_at: null,
-          error: e instanceof Error ? e.message : 'Fehler',
-        })
-      }
-    }
-    load().catch(() => {})
-    const interval = setInterval(() => { load().catch(() => {}) }, 3600000)
     return () => clearInterval(interval)
   }, [])
 
@@ -238,74 +216,31 @@ export function Topbar({ page: _page, onNavigate }: Props) {
           )
         })()}
 
-        {(() => {
-          const tone = !pollen
-            ? { color: '#f59e0b', label: 'Pollen: Unklar' }
-            : pollen.level === 'high'
-              ? { color: 'var(--status-offline)', label: pollen.label }
-              : pollen.level === 'medium'
-                ? { color: '#f59e0b', label: pollen.label }
-                : pollen.level === 'low'
-                  ? { color: 'var(--status-online)', label: pollen.label }
-                  : { color: '#f59e0b', label: pollen.label }
-
-          return (
-            <button
-              className="btn btn-ghost"
-              onClick={() => window.open('https://www.wetteronline.de/pollen/gelsenkirchen', '_blank', 'noopener,noreferrer')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                border: '1px solid var(--glass-border)',
-                borderRadius: 'var(--radius-md)',
-                padding: '4px 12px',
-                background: 'var(--glass-bg)',
-                flexShrink: 0,
-              }}
-              title="Zum Pollenflug"
-            >
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700 }}>Pollen</span>
-              <span
-                style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: '50%',
-                  background: tone.color,
-                  boxShadow: `0 0 8px ${tone.color}`,
-                  display: 'inline-block',
-                }}
-              />
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                {pollen?.label ?? 'Unklar'}
-              </span>
-            </button>
-          )
-        })()}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            border: '1px solid var(--glass-border)',
+            borderRadius: 'var(--radius-md)',
+            padding: '4px 12px',
+            background: 'var(--glass-bg)',
+            flexShrink: 0,
+            fontSize: 12,
+            color: 'var(--text-muted)',
+          }}
+          title="Pollen vorübergehend deaktiviert"
+        >
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700 }}>Pollen</span>
+          <span>Pollen vorübergehend deaktiviert</span>
+        </div>
 
         {(() => {
           const weatherWidget = topbarWidgets.find(w => w.type === 'weather')
           if (!weatherWidget) return null
 
-          const weather = stats[weatherWidget.id] as WeatherStats | undefined
-          const config = weatherWidget.config as WeatherWidgetConfig
-          const location = config.city_name || config.location_name || weatherWidget.name || 'Wetter'
-
-          const hasWeather =
-            !!weather &&
-            !weather.error &&
-            typeof weather.temperature === 'number' &&
-            typeof weather.humidity === 'number' &&
-            typeof weather.weather_code === 'number' &&
-            typeof weather.unit === 'string' &&
-            weather.unit.length > 0
-
-          const icon = hasWeather ? (WEATHER_ICONS[weather.weather_code] ?? '🌡️') : '🌡️'
-
           return (
-            <button
-              className="btn btn-ghost"
-              onClick={() => window.open('https://www.dwd.de/DE/leistungen/radarbild_film/radarbild_film.html', '_blank', 'noopener,noreferrer')}
+            <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -315,26 +250,14 @@ export function Topbar({ page: _page, onNavigate }: Props) {
                 padding: '4px 12px',
                 background: 'var(--glass-bg)',
                 flexShrink: 0,
+                fontSize: 12,
+                color: 'var(--text-muted)',
               }}
-              title="Zum Regenradar"
+              title="Wetter vorübergehend deaktiviert"
             >
-              <span style={{ fontSize: 18, lineHeight: 1 }}>{icon}</span>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700 }}>{location}</span>
-                  {hasWeather && (
-                    <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--accent)' }}>
-                      {weather.temperature}{weather.unit}
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                  {hasWeather
-                    ? `${weather.humidity}% · ${weather.rain_text ?? 'Kein Regen in Sicht'}`
-                    : (weather?.error || 'Lade Wetter…')}
-                </div>
-              </div>
-            </button>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>🌡️</span>
+              <span>Wetter vorübergehend deaktiviert</span>
+            </div>
           )
         })()}
 
@@ -376,19 +299,6 @@ export function Topbar({ page: _page, onNavigate }: Props) {
                 {val(String(counts.running), 'var(--status-online)')} {muted('running')}
                 {counts.stopped > 0 && <>{sep}{val(String(counts.stopped), 'var(--text-muted)')} {muted('stopped')}</>}
                 {counts.restarting > 0 && <>{sep}{val(String(counts.restarting), '#f59e0b')} {muted('restarting')}</>}
-              </div>
-            )
-          }
-
-          if (w.type === 'adguard_home') {
-            const s = stats[w.id] as AdGuardStats | undefined
-            if (!s) return null
-            return (
-              <div key={w.id} style={pillStyle}>
-                {label('AdGuard:')}
-                {val(String(s.total_queries))} {muted(t('docker_widget.req'))}
-                {sep}
-                {val(String(s.blocked_queries), 'var(--status-offline)')} {muted(`${t('docker_widget.blocked')} (${s.blocked_percent}%)`)}
               </div>
             )
           }

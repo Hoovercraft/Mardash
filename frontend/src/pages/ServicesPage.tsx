@@ -369,6 +369,8 @@ function SortableGroupSection({
 
 
 
+const FIXED_GROUP_ORDER = ['Externe Server', 'Interne Dienste', 'Internet']
+
 export function ServicesPage({ onEdit }: Props) {
   const { t } = useTranslation('services')
   const { services, groups, isAdmin } = useStore()
@@ -384,7 +386,9 @@ export function ServicesPage({ onEdit }: Props) {
   const { reorderGroups } = useStore()
 
   useEffect(() => {
-    const sortedGroups = [...groups].sort((a, b) => a.position - b.position)
+    const sortedGroups = [
+      ...FIXED_GROUP_ORDER.map(name => groups.find(g => g.name === name)).filter((g): g is typeof groups[number] => Boolean(g)),
+    ]
     const ids = sortedGroups.map(g => g.id)
     const ungroupedId = services.some(s => !s.group_id) ? 'ungrouped' : null
     setGroupOrder([...ids, ...(ungroupedId ? [ungroupedId] : [])])
@@ -419,8 +423,10 @@ export function ServicesPage({ onEdit }: Props) {
     )
   }
 
-  // Build sections: one per group (ordered by position), then ungrouped at end
-  const sortedGroups = [...groups].sort((a, b) => a.position - b.position)
+  // Build sections: fixed groups first, then ungrouped
+  const sortedGroups = [
+    ...FIXED_GROUP_ORDER.map(name => groups.find(g => g.name === name)).filter((g): g is typeof groups[number] => Boolean(g)),
+  ]
   const sections: { label: string; icon: string | null; services: Service[]; id: string }[] = []
 
   for (const group of sortedGroups) {

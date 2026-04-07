@@ -1,12 +1,12 @@
 import React, { useEffect, useLayoutEffect, useState } from 'react'
 import {
-  LayoutDashboard, Settings, AppWindow, BarChart2, Container, Home,
-  ChevronLeft, ChevronRight, ScrollText, Network, HardDrive, Server, Bookmark, Link2, SlidersHorizontal} from 'lucide-react'
+  LayoutDashboard, Container, Home,
+  ChevronLeft, ChevronRight, Network, Server, SlidersHorizontal} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useStore } from '../store/useStore'
 import { useWidgetStore } from '../store/useWidgetStore'
 import { useDockerStore } from '../store/useDockerStore'
-import type { Widget, ServerStats, AdGuardStats, HaEntityState, NpmStats, CalendarEntry, WeatherStats } from '../types'
+import type { Widget, ServerStats, HaEntityState, NpmStats, CalendarEntry } from '../types'
 import { containerCounts } from '../utils'
 import { LS_SIDEBAR_COLLAPSED } from '../constants'
 
@@ -28,7 +28,7 @@ export function Sidebar({ page, onNavigate }: Props) {
   const sidebarWidgets = widgets.filter(w => w.display_location === 'sidebar')
   const hasSidebarDocker = sidebarWidgets.some(w => w.type === 'docker_overview')
   const sidebarStatsKey = sidebarWidgets
-    .filter(w => w.type !== 'docker_overview' && w.type !== 'custom_button')
+    .filter(w => w.type !== 'docker_overview' && w.type !== 'custom_button' && w.type !== 'weather')
     .map(w => w.id)
     .join(',')
 
@@ -50,7 +50,9 @@ export function Sidebar({ page, onNavigate }: Props) {
 
   useEffect(() => {
     if (!sidebarStatsKey) return
-    const pollable = sidebarWidgets.filter(w => w.type !== 'docker_overview' && w.type !== 'custom_button')
+    const pollable = sidebarWidgets.filter(
+      w => w.type !== 'docker_overview' && w.type !== 'custom_button' && w.type !== 'weather'
+    )
     pollable.forEach(w => { loadStats(w.id).catch(() => {}); startPolling(w.id, w.type) })
     return () => pollable.forEach(w => stopPolling(w.id))
   }, [sidebarStatsKey, sidebarWidgets, loadStats, startPolling, stopPolling])
@@ -205,13 +207,8 @@ function SidebarWidget({ widget }: { widget: Widget }) {
       {ss.ram.total > 0 && row('RAM', `${Math.round((ss.ram.used / ss.ram.total) * 100)}%`, pctColor(Math.round(ss.ram.used / ss.ram.total * 100)))}
       {ss.disk.total > 0 && row('Disk', `${Math.round((ss.disk.used / ss.disk.total) * 100)}%`, pctColor(Math.round(ss.disk.used / ss.disk.total * 100)))}
     </>
-  } else if (widget.type === 'adguard_home' && 'total_queries' in (s as object)) {
-    const adg = s as AdGuardStats
-    body = <>
-      {row('Anfragen', String(adg.total_queries))}
-      {row('Blockiert', `${adg.blocked_queries} (${adg.blocked_percent}%)`, 'var(--status-offline)')}
-      {row('Schutz', adg.protection_enabled ? 'Aktiv' : 'Pausiert', adg.protection_enabled ? 'var(--status-online)' : '#f59e0b')}
-    </>
+  } else if (widget.type === 'adguard_home') {
+    return null
   } else if (widget.type === 'home_assistant' && Array.isArray(s)) {
     const entities = s as HaEntityState[]
     body = entities.slice(0, 4).map(e => row(e.label || e.friendly_name || e.entity_id, `${e.state}${e.unit ? ` ${e.unit}` : ''}`))
@@ -229,10 +226,8 @@ function SidebarWidget({ widget }: { widget: Widget }) {
       e.title
     ))
   } else if (widget.type === 'weather' && 'temperature' in (s as object)) {
-    const weather = s as WeatherStats
     body = <>
-      {row('Temperatur', `${weather.temperature}°C`)}
-      {row('Wind', `${weather.windspeed} km/h`)}
+      {row('Status', 'Vorübergehend deaktiviert')}
     </>
   }
 

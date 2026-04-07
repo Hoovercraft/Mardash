@@ -4,11 +4,10 @@ import { useStore } from '../store/useStore'
 import { useDashboardStore } from '../store/useDashboardStore'
 import { useWidgetStore } from '../store/useWidgetStore'
 import { useDockerStore } from '../store/useDockerStore'
-import { useBookmarkStore } from '../store/useBookmarkStore'
 import { ServiceCard } from '../components/ServiceCard'
-import { AdGuardStatsView, DockerOverviewContent, HaStatsView, CustomButtonsView, StatBar, NginxPMStatsView, HaEnergyWidgetView, CalendarWidgetContent, WeatherWidgetView } from './WidgetsPage'
+import { DockerOverviewContent, HaStatsView, CustomButtonsView, StatBar, NginxPMStatsView, HaEnergyWidgetView, CalendarWidgetContent, WeatherWidgetView } from './WidgetsPage'
 import { HelbackupWidget } from '../components/HelbackupWidget'
-import type { Service, DashboardItem, DashboardServiceItem, DashboardPlaceholderItem, DashboardWidgetItem, DashboardGroup, ServerStats, AdGuardStats, NpmStats, HaEntityState, AdGuardHomeConfig, Widget, EnergyData, CalendarEntry, WeatherStats, WeatherWidgetConfig } from '../types'
+import type { Service, DashboardItem, DashboardServiceItem, DashboardPlaceholderItem, DashboardWidgetItem, DashboardGroup, ServerStats, NpmStats, HaEntityState, Widget, EnergyData, CalendarEntry, WeatherStats, WeatherWidgetConfig } from '../types'
 import { normalizeUrl } from '../utils'
 import { api, getIconUrl } from '../api'
 
@@ -26,7 +25,7 @@ function DashboardWidgetIcon({ widget }: { widget: DashboardWidgetItem['widget']
   let iconUrl: string | null = null
   let iconEmoji: string | null = null
 
-  if (widget.type === 'adguard_home' || widget.type === 'pihole' || widget.type === 'home_assistant' || widget.type === 'nginx_pm') {
+  if (widget.type === 'pihole' || widget.type === 'home_assistant' || widget.type === 'nginx_pm') {
     const cfg = widget.config as { url?: string }
     const widgetUrl = normalizeUrl(cfg.url ?? '')
     const match = widgetUrl
@@ -273,7 +272,7 @@ function DashboardWidgetCard({ item, editMode, groups, colSpan = 2, hiddenWidget
   const { t } = useTranslation('dashboard')
   const { isAdmin } = useStore()
   const { removeItem, moveItemToGroup, showVisibilityOverlay } = useDashboardStore()
-  const { stats, setAdGuardProtection, setPiholeProtection } = useWidgetStore()
+  const { stats, setPiholeProtection } = useWidgetStore()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id, disabled: !editMode,
   })
@@ -281,14 +280,6 @@ function DashboardWidgetCard({ item, editMode, groups, colSpan = 2, hiddenWidget
   const [toggling, setToggling] = useState(false)
   const s = stats[item.widget.id]
   const isWidgetHidden = hiddenWidgetIds ? hiddenWidgetIds.includes(item.widget.id) : false
-
-  const handleAdGuardToggle = async () => {
-    if (!isAdmin || item.widget.type !== 'adguard_home' || !s) return
-    const ag = s as AdGuardStats
-    setToggling(true)
-    try { await setAdGuardProtection(item.widget.id, !ag.protection_enabled) }
-    finally { setToggling(false) }
-  }
 
   const handlePiholeToggle = async () => {
     if (!isAdmin || item.widget.type !== 'pihole' || !s) return
@@ -365,8 +356,9 @@ function DashboardWidgetCard({ item, editMode, groups, colSpan = 2, hiddenWidget
           s ? <CalendarWidgetContent entries={s as CalendarEntry[]} />
             : <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>{t('loading.calendar')}</div>
         ) : item.widget.type === 'weather' ? (
-          s ? <WeatherWidgetView stats={s as WeatherStats} config={item.widget.config as WeatherWidgetConfig} />
-            : <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>{t('loading.weather')}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>
+            Wetter vorübergehend deaktiviert
+          </div>
         ) : item.widget.type === 'helbackup' ? (
           <HelbackupWidget />
         ) : item.widget.type === 'appdata_backup' ? (
@@ -400,7 +392,6 @@ function DashboardWidgetCard({ item, editMode, groups, colSpan = 2, hiddenWidget
     </div>
   )
 }
-
 
 // ── Placeholder card ──────────────────────────────────────────────────────────
 function DashboardPlaceholderCard({ item, editMode }: { item: DashboardPlaceholderItem; editMode: boolean }) {
@@ -506,7 +497,6 @@ function renderDashboardItem(
   }
   return null
 }
-
 
 // ── Sortable Group ─────────────────────────────────────────────────────────────
 function SortableGroup({ group, editMode, onEdit, hiddenServiceIds, hiddenWidgetIds, hiddenArrIds }: {
@@ -685,10 +675,7 @@ export function Dashboard({ onEdit }: Props) {
 
   const { loadStats, startPollingAll, stopPollingAll } = useWidgetStore()
   const { loadContainers } = useDockerStore()
-  const { bookmarks, loadBookmarks } = useBookmarkStore()
   const [guestVisibility, setGuestVisibility] = useState<{ services: string[]; arr: string[]; widgets: string[] }>({ services: [], arr: [], widgets: [] })
-
-  const dashboardBookmarks = bookmarks.filter(b => b.show_on_dashboard !== 0)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -704,7 +691,12 @@ export function Dashboard({ onEdit }: Props) {
   useEffect(() => {
     const widgetItems = [...items, ...groups.flatMap(g => g.items)]
       .filter(i => i.type === 'widget') as DashboardWidgetItem[]
-    const statsPollable = widgetItems.filter(i => i.widget.type !== 'docker_overview' && i.widget.type !== 'custom_button' && i.widget.type !== 'helbackup')
+    const statsPollable = widgetItems.filter(
+      i => i.widget.type !== 'docker_overview'
+        && i.widget.type !== 'custom_button'
+        && i.widget.type !== 'helbackup'
+        && i.widget.type !== 'weather'
+    )
     const dockerPollable = widgetItems.filter(i => i.widget.type === 'docker_overview')
     if (statsPollable.length === 0 && dockerPollable.length === 0) return
     Promise.all(statsPollable.map(i => loadStats(i.widget.id))).catch(() => {})
@@ -720,13 +712,6 @@ export function Dashboard({ onEdit }: Props) {
       api.admin.guestVisibility().then(v => setGuestVisibility(v)).catch(() => {})
     }
   }, [showVisibilityOverlay, isAdmin])
-
-  // Load bookmarks if not yet loaded
-  useEffect(() => {
-    if (bookmarks.length === 0) {
-      loadBookmarks().catch(() => {})
-    }
-  }, [bookmarks.length])
 
   const isPlaceholder = (type: string) =>
     type === 'placeholder' || type === 'placeholder_app' || type === 'placeholder_widget' || type === 'placeholder_row'
@@ -763,7 +748,7 @@ export function Dashboard({ onEdit }: Props) {
     )
   }
 
-  if (!loading && !realGroupItems && !realUngroupedItems && dashboardBookmarks.length === 0) {
+  if (!loading && !realGroupItems && !realUngroupedItems) {
     return (
       <div className="empty-state">
         <div className="empty-state-icon">⬡</div>
@@ -836,37 +821,6 @@ export function Dashboard({ onEdit }: Props) {
         </DndContext>
       ) : (
         ungroupedSection
-      )}
-
-      {/* Bookmarks section */}
-      {dashboardBookmarks.length > 0 && (
-        <div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
-            {dashboardBookmarks.map(bm => (
-              <a
-                key={bm.id}
-                href={bm.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="glass"
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 'var(--radius-md)', textDecoration: 'none', color: 'inherit', transition: 'var(--transition-base)' }}
-              >
-                <div style={{ width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', overflow: 'hidden' }}>
-                  {getIconUrl(bm)
-                    ? <img src={getIconUrl(bm)!} alt="" style={{ width: 22, height: 22, objectFit: 'contain' }} />
-                    : <Home size={14} style={{ color: 'var(--text-muted)' }} />
-                  }
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bm.name}</div>
-                  {bm.description && (
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bm.description}</div>
-                  )}
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
       )}
 
     </div>
