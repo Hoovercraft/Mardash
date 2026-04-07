@@ -4,7 +4,7 @@ import { useStore } from '../store/useStore'
 import { useDashboardStore } from '../store/useDashboardStore'
 import { useWidgetStore } from '../store/useWidgetStore'
 import { ServiceCard } from '../components/ServiceCard'
-import { WeatherWidgetView } from './WidgetsPage'
+import { WeatherWidgetView, PollenWidgetView } from './WidgetsPage'
 import type { Service, DashboardItem, DashboardServiceItem, DashboardPlaceholderItem, DashboardWidgetItem, DashboardGroup, ServerStats, WeatherStats, WeatherWidgetConfig, AppdataBackupWidgetStats } from '../types'
 import { api, getIconUrl } from '../api'
 
@@ -322,6 +322,9 @@ function DashboardWidgetCard({ item, editMode, groups, colSpan = 2, hiddenWidget
             : <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>{t('loading.weather')}</div>
         ) : item.widget.type === 'appdata_backup' ? (
           <AppdataBackupWidgetView stats={s ? (s as AppdataBackupWidgetStats) : null} />
+        ) : item.widget.type === 'pollen' ? (
+          s ? <PollenWidgetView stats={s as any} />
+            : <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>Pollen werden geladen</div>
         ) : null}
       </div>
       {showVisibilityOverlay && (

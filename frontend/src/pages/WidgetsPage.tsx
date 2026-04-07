@@ -132,21 +132,52 @@ export function WeatherWidgetView({ stats, config }: { stats: WeatherStats; conf
   )
 }
 
-function PollenWidgetView({ stats }: { stats: any }) {
+function pollenColor(level: number | null | undefined) {
+  if (level == null) return 'var(--text-muted)'
+  if (level >= 5) return 'var(--status-offline)'
+  if (level >= 3) return '#f59e0b'
+  if (level >= 1) return 'var(--accent)'
+  return 'var(--text-muted)'
+}
+
+export function PollenWidgetView({ stats }: { stats: any }) {
   if (!stats || stats.error) {
-    return <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>Noch nicht angebunden</div>
+    return <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>{stats?.error || 'Pollen aktuell nicht verfügbar'}</div>
   }
+
+  const rows = [
+    { label: 'Hasel', level: stats.hasel, text: stats.hasel_text },
+    { label: 'Birke', level: stats.birke, text: stats.birke_text },
+    { label: 'Gräser', level: stats.graeser, text: stats.graeser_text },
+    ...(stats.pappel_text || stats.pappel != null ? [{ label: 'Pappel', level: stats.pappel, text: stats.pappel_text }] : []),
+  ]
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ fontSize: 12, fontWeight: 600 }}>{stats.label ?? 'Pollen'}</div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-        <span style={{ color: 'var(--text-muted)' }}>Level</span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{stats.level ?? '—'}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+        <div style={{ fontSize: 12, fontWeight: 600 }}>{stats.source_region || 'Pollen'}</div>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{stats.updated_at ? new Date(stats.updated_at).toLocaleDateString('de-DE') : ''}</div>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-        <span style={{ color: 'var(--text-muted)' }}>Region</span>
-        <span>{stats.source_region ?? '—'}</span>
-      </div>
+
+      {rows.map(row => (
+        <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', fontSize: 12 }}>
+          <div style={{ color: 'var(--text-secondary)' }}>{row.label}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <span style={{ color: pollenColor(row.level), fontWeight: 600, textAlign: 'right' }}>{row.text || '—'}</span>
+            <span
+              title={row.text || '—'}
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                background: pollenColor(row.level),
+                boxShadow: `0 0 6px ${pollenColor(row.level)}66`,
+                flexShrink: 0,
+              }}
+            />
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
@@ -166,7 +197,7 @@ function WidgetForm({
 
   const [type, setType] = useState<WidgetFormType>((initial?.type as WidgetFormType) ?? 'unraid_status')
   const [name, setName] = useState(initial?.name ?? '')
-  const [displayLocation, setDisplayLocation] = useState<'topbar' | 'sidebar' | 'none'>((initial?.display_location ?? 'none') as 'topbar' | 'sidebar' | 'none')
+  const displayLocation: 'topbar' = 'topbar'
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -238,7 +269,7 @@ function WidgetForm({
 
     setSaving(true)
     try {
-      await onSave({ name: name.trim(), type, config, display_location: displayLocation, iconId, iconChanged })
+      await onSave({ name: name.trim(), type, config, display_location: 'topbar', iconId, iconChanged })
     } catch (e: unknown) {
       setError((e as Error).message)
     } finally {
@@ -290,37 +321,8 @@ function WidgetForm({
           </div>
         )}
 
-        <div>
-          <label className="form-label" style={{ fontSize: 11 }}>{t('form.display_location_label')}</label>
-          <div className="glass" style={{ borderRadius: 'var(--radius-xl)', padding: '6px 8px', display: 'flex', gap: 2 }}>
-            {(['topbar', 'sidebar', 'none'] as const).map(loc => (
-              <button
-                key={loc}
-                type="button"
-                onClick={() => setDisplayLocation(loc)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '7px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: 13,
-                  fontWeight: displayLocation === loc ? 600 : 400,
-                  background: displayLocation === loc ? 'rgba(var(--accent-rgb), 0.12)' : 'transparent',
-                  color: displayLocation === loc ? 'var(--accent)' : 'var(--text-secondary)',
-                  border: displayLocation === loc ? '1px solid rgba(var(--accent-rgb), 0.25)' : '1px solid transparent',
-                  cursor: 'pointer',
-                  transition: 'all 150ms ease',
-                  textTransform: 'capitalize',
-                  fontFamily: 'var(--font-sans)',
-                }}
-              >
-                {loc === 'topbar' && '📊'}
-                {loc === 'sidebar' && '📌'}
-                {loc === 'none' && '✕'} {loc}
-              </button>
-            ))}
-          </div>
+        <div className="glass" style={{ borderRadius: 'var(--radius-xl)', padding: '10px 12px', fontSize: 12, color: 'var(--text-muted)' }}>
+          Dieses Widget wird automatisch in der Topbar angezeigt.
         </div>
 
         {type === 'unraid_status' && (

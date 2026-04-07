@@ -986,8 +986,8 @@ function IntegrationenTab() {
         type: 'weather',
         name: 'Wetter',
         config,
-        display_location: 'none',
-        show_in_topbar: false,
+        display_location: 'topbar',
+        show_in_topbar: true,
       }
 
       if (weatherWidget) {
@@ -1190,7 +1190,7 @@ function WidgetsTab() {
 
   const widgetByType = (type: ControlCenterWidgetType) => widgets.find(w => w.type === type) ?? null
 
-  const saveWidget = async (type: ControlCenterWidgetType, name: string, displayLocation: 'none' | 'topbar' | 'sidebar' = 'none') => {
+  const saveWidget = async (type: ControlCenterWidgetType, name: string, displayLocation: 'none' | 'topbar' | 'sidebar' = 'topbar') => {
     setBusy(type)
     try {
       const payload = {
@@ -1242,8 +1242,8 @@ function WidgetsTab() {
       await updateWidget(weatherWidget.id, {
         name: weatherWidget.name || 'Wetter',
         config: weatherWidget.config,
-        display_location: weatherWidget.display_location ?? 'none',
-        show_in_topbar: (weatherWidget.display_location ?? 'none') === 'topbar',
+        display_location: 'topbar',
+        show_in_topbar: true,
       })
       await loadWidgets()
     } finally {
@@ -1262,7 +1262,7 @@ function WidgetsTab() {
             <button
               className="btn btn-primary"
               disabled={!unraidReady || busy === 'unraid_status'}
-              onClick={() => { void saveWidget('unraid_status', 'Unraid Status', 'none') }}
+              onClick={() => { void saveWidget('unraid_status', 'Unraid Status', 'topbar') }}
               style={{ gap: 8 }}
             >
               <LayoutGrid size={14} /> {unraidStatusWidget ? 'Speichern' : 'Einrichten'}
@@ -1313,7 +1313,7 @@ function WidgetsTab() {
             <button
               className="btn btn-primary"
               disabled={busy === 'pollen'}
-              onClick={() => { void saveWidget('pollen', 'Pollen', 'none') }}
+              onClick={() => { void saveWidget('pollen', 'Pollen', 'topbar') }}
               style={{ gap: 8 }}
             >
               <LayoutGrid size={14} /> {pollenWidget ? 'Speichern' : 'Einrichten'}
@@ -1337,7 +1337,7 @@ function WidgetsTab() {
             <button
               className="btn btn-primary"
               disabled={!unraidReady || busy === 'appdata_backup'}
-              onClick={() => { void saveWidget('appdata_backup', 'Appdata-Backup', 'none') }}
+              onClick={() => { void saveWidget('appdata_backup', 'Appdata-Backup', 'topbar') }}
               style={{ gap: 8 }}
             >
               <LayoutGrid size={14} /> {appdataBackupWidget ? 'Speichern' : 'Einrichten'}

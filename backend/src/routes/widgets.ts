@@ -383,6 +383,135 @@ async function toggleHaEntity(url: string, token: string, entityId: string, curr
   }
 }
 
+
+const POLLEN_PHRASES = [
+  'mäßiger bis starker Pollenflug',
+  'schwacher bis mäßiger Pollenflug',
+  'kein bis schwacher Pollenflug',
+  'starker Pollenflug',
+  'mäßiger Pollenflug',
+  'schwacher Pollenflug',
+  'geringer Pollenflug',
+  'kein Pollenflug',
+] as const
+
+function decodeHtmlEntities(input: string): string {
+  const named: Record<string, string> = {
+    '&nbsp;': ' ',
+    '&amp;': '&',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&lt;': '<',
+    '&gt;': '>',
+    '&auml;': 'ä',
+    '&ouml;': 'ö',
+    '&uuml;': 'ü',
+    '&Auml;': 'Ä',
+    '&Ouml;': 'Ö',
+    '&Uuml;': 'Ü',
+    '&szlig;': 'ß',
+  }
+
+  let out = input.replace(/&nbsp;|&amp;|&quot;|&#39;|&lt;|&gt;|&auml;|&ouml;|&uuml;|&Auml;|&Ouml;|&Uuml;|&szlig;/g, (m) => named[m] ?? m)
+  out = out.replace(/&#(\d+);/g, (_m, dec) => {
+    try { return String.fromCodePoint(parseInt(dec, 10)) } catch { return '' }
+  })
+  out = out.replace(/&#x([0-9a-fA-F]+);/g, (_m, hex) => {
+    try { return String.fromCodePoint(parseInt(hex, 16)) } catch { return '' }
+  })
+  return out
+}
+
+function htmlToPlainText(html: string): string {
+  return decodeHtmlEntities(
+    html
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+  ).replace(/\s+/g, ' ').trim()
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function pollenTextToLevel(text: string | null): number | null {
+  if (!text) return null
+  const v = text.toLowerCase()
+  if (v === 'kein Pollenflug'.toLowerCase()) return 0
+  if (v === 'kein bis schwacher Pollenflug'.toLowerCase()) return 1
+  if (v === 'geringer Pollenflug'.toLowerCase()) return 1
+  if (v === 'schwacher Pollenflug'.toLowerCase()) return 2
+  if (v === 'schwacher bis mäßiger Pollenflug'.toLowerCase()) return 3
+  if (v === 'mäßiger Pollenflug'.toLowerCase()) return 4
+  if (v === 'mäßiger bis starker Pollenflug'.toLowerCase()) return 5
+  if (v === 'starker Pollenflug'.toLowerCase()) return 6
+  return null
+}
+
+function extractPollenPhrase(section: string, species: string): string | null {
+  const escapedSpecies = escapeRegex(species)
+  for (const phrase of POLLEN_PHRASES) {
+    const re = new RegExp(`${escapedSpecies}\\s+${escapeRegex(phrase)}`, 'i')
+    if (re.test(section)) return phrase
+  }
+  return null
+}
+
+async function getPollenStats(): Promise<Record<string, unknown>> {
+  const sourceUrl = 'https://www.onmeda.de/biowetter/gelsenkirchen-id217708/'
+  try {
+    const res = await fetch(sourceUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Mardash/1.0)',
+        'Accept-Language': 'de-DE,de;q=0.9',
+      },
+    })
+    if (!res.ok) return { error: `Pollenquelle antwortet mit HTTP ${res.status}` }
+
+    const html = await res.text()
+    const plain = htmlToPlainText(html)
+
+    const sectionMatch = plain.match(/Pollenflug Gelsenkirchen \(Stadt\)\s+Heute\s+Morgen\s+([\s\S]*?)(?:UV-Index Gelsenkirchen|Biowetter heute|Gestern|Pollenflug Gelsenkirchen \(Region\))/i)
+    if (!sectionMatch) {
+      return { error: 'Pollenquelle konnte nicht ausgewertet werden' }
+    }
+
+    const section = sectionMatch[1] ?? ''
+    const haselText = extractPollenPhrase(section, 'Hasel')
+    const birkeText = extractPollenPhrase(section, 'Birke')
+    const graeserText = extractPollenPhrase(section, 'Gräser')
+    const pappelText = extractPollenPhrase(section, 'Pappel')
+
+    const hasel = pollenTextToLevel(haselText)
+    const birke = pollenTextToLevel(birkeText)
+    const graeser = pollenTextToLevel(graeserText)
+    const pappel = pollenTextToLevel(pappelText)
+
+    const levels = [hasel, birke, graeser, pappel].filter((v): v is number => typeof v === 'number')
+    const maxLevel = levels.length > 0 ? Math.max(...levels) : null
+
+    return {
+      level: maxLevel,
+      label: maxLevel === null ? 'Keine Daten' : 'Gelsenkirchen',
+      source_region: 'Gelsenkirchen',
+      updated_at: new Date().toISOString(),
+      hasel,
+      hasel_text: haselText,
+      birke,
+      birke_text: birkeText,
+      graeser,
+      graeser_text: graeserText,
+      pappel,
+      pappel_text: pappelText,
+      source_url: sourceUrl,
+    }
+  } catch (err) {
+    return { error: (err as Error).message }
+  }
+}
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 export async function widgetsRoutes(app: FastifyInstance) {
   const db = getDb()
@@ -630,12 +759,7 @@ export async function widgetsRoutes(app: FastifyInstance) {
     }
 
     if (row.type === 'pollen') {
-      return {
-        level: 'unknown',
-        label: 'Noch nicht angebunden',
-        source_region: null,
-        updated_at: null,
-      }
+      return await getPollenStats()
     }
 
     if (row.type === 'weather') {

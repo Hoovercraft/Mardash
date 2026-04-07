@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { memo, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLanguageStore } from '../store/useLanguageStore'
 import { useStore } from '../store/useStore'
@@ -6,7 +6,7 @@ import { useWidgetStore } from '../store/useWidgetStore'
 import { useDockerStore } from '../store/useDockerStore'
 import { useUnraidStore } from '../store/useUnraidStore'
 import { api } from '../api'
-import type { ServerStats, HaEntityState, NpmStats, CalendarEntry } from '../types'
+import type { ServerStats, HaEntityState, NpmStats, CalendarEntry, WeatherStats } from '../types'
 import { containerCounts } from '../utils'
 
 const WEATHER_ICONS: Record<number, string> = {
@@ -22,6 +22,63 @@ const WEATHER_ICONS: Record<number, string> = {
   85: '🌨️', 86: '🌨️',
   95: '⛈️', 96: '⛈️', 99: '⛈️',
 }
+
+
+function pollenTone(level?: number | null) {
+  if (level == null) return 'var(--text-muted)'
+  if (level >= 5) return 'var(--status-offline)'
+  if (level >= 3) return '#f59e0b'
+  if (level >= 1) return 'var(--status-online)'
+  return 'var(--text-muted)'
+}
+
+function PollenDot({ label, level }: { label: string; level?: number | null }) {
+  const color = pollenTone(level)
+  return (
+    <span
+      title={label}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{label}</span>
+      <span
+        style={{
+          width: 9,
+          height: 9,
+          borderRadius: '50%',
+          background: color,
+          boxShadow: `0 0 6px ${color}`,
+          display: 'inline-block',
+          flexShrink: 0,
+        }}
+      />
+    </span>
+  )
+}
+
+const TopbarClock = memo(function TopbarClock({ dateLocale, serverOffset }: { dateLocale: string; serverOffset: number }) {
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const tick = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(tick)
+  }, [])
+
+  const serverNow = new Date(now.getTime() + serverOffset)
+
+  return (
+    <div className="topbar-title">
+      <span>{serverNow.toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+      <span style={{ marginLeft: 10, fontVariantNumeric: 'tabular-nums' }}>
+        {serverNow.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      </span>
+    </div>
+  )
+})
 
 interface Props {
   page: string
@@ -41,28 +98,45 @@ export function Topbar({ page: _page, onNavigate }: Props) {
   const { containers, loadContainers } = useDockerStore()
   const { instances: unraidInstances, online: unraidOnline, loadInstances: loadUnraidInstances, pingAll: pingAllUnraid } = useUnraidStore()
 
-  const [serverOffset, setServerOffset] = React.useState(0)
-  const [now, setNow] = React.useState(() => new Date())
+  const [serverOffset, setServerOffset] = useState(0)
 
   void settings
   void _page
 
-  const topbarWidgets = widgets.filter(w => w.display_location === 'topbar')
-  const hasDockerTopbar = topbarWidgets.some(w => w.type === 'docker_overview')
-  const statsWidgetKey = topbarWidgets
-    .filter(w => w.type !== 'docker_overview' && w.type !== 'weather')
-    .map(w => w.id)
-    .join(',')
+  const topbarWidgets = useMemo(() => {
+    const priority: Record<string, number> = {
+      weather: 0,
+      pollen: 1,
+      unraid_status: 2,
+      server_status: 2,
+      appdata_backup: 3,
+    }
+    return widgets
+      .filter(w => w.display_location === 'topbar')
+      .slice()
+      .sort((a, b) => (priority[a.type] ?? 10) - (priority[b.type] ?? 10))
+  }, [widgets])
+
+  const hasDockerTopbar = useMemo(
+    () => topbarWidgets.some(w => w.type === 'docker_overview'),
+    [topbarWidgets]
+  )
+
+  const pollableTopbarWidgets = useMemo(
+    () => topbarWidgets.filter(w => w.type !== 'docker_overview' && w.type !== 'custom_button'),
+    [topbarWidgets]
+  )
+
+  const statsWidgetKey = useMemo(
+    () => pollableTopbarWidgets.map(w => `${w.id}:${w.type}`).join(','),
+    [pollableTopbarWidgets]
+  )
 
   useEffect(() => {
     api.serverTime().then(({ iso }) => {
       setServerOffset(new Date(iso).getTime() - Date.now())
     }).catch(() => {})
-    const tick = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(tick)
   }, [])
-
-  const serverNow = new Date(now.getTime() + serverOffset)
 
   useEffect(() => {
     loadWidgets().catch(() => {})
@@ -70,17 +144,14 @@ export function Topbar({ page: _page, onNavigate }: Props) {
 
   useEffect(() => {
     if (!statsWidgetKey) return
-    const pollable = topbarWidgets.filter(
-      w => w.type !== 'docker_overview' && w.type !== 'custom_button' && w.type !== 'weather'
-    )
-    pollable.forEach(w => {
+    pollableTopbarWidgets.forEach(w => {
       loadStats(w.id).catch(() => {})
       startPolling(w.id, w.type)
     })
     return () => {
-      pollable.forEach(w => stopPolling(w.id))
+      pollableTopbarWidgets.forEach(w => stopPolling(w.id))
     }
-  }, [statsWidgetKey, topbarWidgets, loadStats, startPolling, stopPolling])
+  }, [statsWidgetKey, pollableTopbarWidgets, loadStats, startPolling, stopPolling])
 
   useEffect(() => {
     loadUnraidInstances().catch(() => {})
@@ -123,12 +194,7 @@ export function Topbar({ page: _page, onNavigate }: Props) {
 
   return (
     <header className="topbar">
-      <div className="topbar-title">
-        <span>{serverNow.toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
-        <span style={{ marginLeft: 10, fontVariantNumeric: 'tabular-nums' }}>
-          {serverNow.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-        </span>
-      </div>
+      <TopbarClock dateLocale={dateLocale} serverOffset={serverOffset} />
 
       <div className="topbar-center">
         {(() => {
@@ -216,52 +282,7 @@ export function Topbar({ page: _page, onNavigate }: Props) {
           )
         })()}
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            border: '1px solid var(--glass-border)',
-            borderRadius: 'var(--radius-md)',
-            padding: '4px 12px',
-            background: 'var(--glass-bg)',
-            flexShrink: 0,
-            fontSize: 12,
-            color: 'var(--text-muted)',
-          }}
-          title="Pollen vorübergehend deaktiviert"
-        >
-          <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700 }}>Pollen</span>
-          <span>Pollen vorübergehend deaktiviert</span>
-        </div>
-
-        {(() => {
-          const weatherWidget = topbarWidgets.find(w => w.type === 'weather')
-          if (!weatherWidget) return null
-
-          return (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                border: '1px solid var(--glass-border)',
-                borderRadius: 'var(--radius-md)',
-                padding: '4px 12px',
-                background: 'var(--glass-bg)',
-                flexShrink: 0,
-                fontSize: 12,
-                color: 'var(--text-muted)',
-              }}
-              title="Wetter vorübergehend deaktiviert"
-            >
-              <span style={{ fontSize: 18, lineHeight: 1 }}>🌡️</span>
-              <span>Wetter vorübergehend deaktiviert</span>
-            </div>
-          )
-        })()}
-
-        {topbarWidgets.filter(w => w.type !== 'weather').map(w => {
+        {topbarWidgets.map(w => {
           const pillStyle: React.CSSProperties = {
             display: 'flex',
             gap: 10,
@@ -353,18 +374,46 @@ export function Topbar({ page: _page, onNavigate }: Props) {
 
           if (w.type === 'weather') {
             const weather = stats[w.id] as WeatherStats | undefined
-            if (!weather || weather.error) return null
+            if (!weather || (weather as any).error) return null
+            const weatherIcon = WEATHER_ICONS[weather.weather_code] ?? '🌡️'
+            const rainText = (weather as any).rain_text as string | undefined
+
             return (
-              <div key={w.id} style={pillStyle}>
+              <button
+                key={w.id}
+                type="button"
+                onClick={() => window.open('https://www.rainviewer.com/de/radars/germany.html', '_blank', 'noopener,noreferrer')}
+                title="Regenradar öffnen"
+                style={{
+                  ...pillStyle,
+                  gap: 8,
+                  cursor: 'pointer',
+                  border: '1px solid rgba(var(--accent-rgb), 0.45)',
+                }}
+              >
+                <span style={{ fontSize: 16, lineHeight: 1 }}>{weatherIcon}</span>
                 {label('Wetter:')}
-                {val(`${weather.temperature}°C`)}
-                {sep}
-                {muted('Wind')} {val(`${weather.windspeed} km/h`)}
+                {val(`${weather.temperature}${weather.unit ?? '°C'}`)}
+                {rainText && <>{sep}{muted(rainText)}</>}
+              </button>
+            )
+          }
+
+          if (w.type === 'pollen') {
+            const pollen = stats[w.id] as any
+            if (!pollen || pollen.error) return null
+            return (
+              <div key={w.id} style={{ ...pillStyle, gap: 8, maxWidth: 'fit-content' }}>
+                {label('Pollen:')}
+                <PollenDot label="H" level={pollen.hasel} />
+                <PollenDot label="B" level={pollen.birke} />
+                <PollenDot label="G" level={pollen.graeser} />
+                {(pollen.pappel_text || pollen.pappel != null) && <PollenDot label="P" level={pollen.pappel} />}
               </div>
             )
           }
 
-          if (w.type === 'server_status') {
+          if (w.type === 'unraid_status' || w.type === 'server_status') {
             const ss = stats[w.id] as ServerStats | undefined
             if (!ss) return null
             return (
