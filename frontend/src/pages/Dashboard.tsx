@@ -11,6 +11,8 @@ import type { Service, DashboardItem, DashboardServiceItem, DashboardPlaceholder
 import { normalizeUrl } from '../utils'
 import { api, getIconUrl } from '../api'
 
+const FIXED_SERVICE_GROUP_ORDER = ['Externe Server', 'Interne Dienste', 'Internet']
+
 function DashboardWidgetIcon({ widget }: { widget: DashboardWidgetItem['widget'] }) {
   const { services } = useStore()
 
@@ -670,7 +672,7 @@ interface Props {
 
 export function Dashboard({ onEdit }: Props) {
   const { t } = useTranslation('dashboard')
-  const { isAdmin } = useStore()
+  const { isAdmin, services, groups: serviceGroups } = useStore()
   const { items, groups, editMode, loading, reorder, reorderGroups, showVisibilityOverlay, setShowVisibilityOverlay } = useDashboardStore()
 
   const { loadStats, startPollingAll, stopPollingAll } = useWidgetStore()
@@ -715,6 +717,50 @@ export function Dashboard({ onEdit }: Props) {
 
   const isPlaceholder = (type: string) =>
     type === 'placeholder' || type === 'placeholder_app' || type === 'placeholder_widget' || type === 'placeholder_row'
+
+  const allDashboardItems = [...items, ...groups.flatMap(g => g.items)]
+  const dashboardServiceIds = new Set(
+    allDashboardItems
+      .filter(i => i.type === 'service')
+      .map(i => (i as DashboardServiceItem).service.id)
+  )
+
+  const serviceSortRank = (groupId: string | null | undefined) => {
+    if (!groupId) return FIXED_SERVICE_GROUP_ORDER.length
+    const name = serviceGroups.find(g => g.id === groupId)?.name ?? ''
+    const idx = FIXED_SERVICE_GROUP_ORDER.indexOf(name)
+    return idx >= 0 ? idx : FIXED_SERVICE_GROUP_ORDER.length + 1
+  }
+
+  const sortedDashboardServices = [...services]
+    .filter(s => dashboardServiceIds.has(s.id))
+    .sort((a, b) => {
+      const rankA = serviceSortRank(a.group_id)
+      const rankB = serviceSortRank(b.group_id)
+      if (rankA !== rankB) return rankA - rankB
+
+      const posA = typeof a.position_x === 'number' ? a.position_x : Number.MAX_SAFE_INTEGER
+      const posB = typeof b.position_x === 'number' ? b.position_x : Number.MAX_SAFE_INTEGER
+      if (posA !== posB) return posA - posB
+
+      return a.name.localeCompare(b.name)
+    })
+
+  const fixedServiceSections = [
+    ...FIXED_SERVICE_GROUP_ORDER.map(name => {
+      const group = serviceGroups.find(g => g.name === name)
+      return {
+        label: name,
+        items: sortedDashboardServices.filter(s => group && s.group_id === group.id),
+      }
+    }),
+    {
+      label: 'Ohne Gruppe',
+      items: sortedDashboardServices.filter(s => !s.group_id),
+    },
+  ].filter(section => section.items.length > 0)
+
+  const dashboardOtherItems = allDashboardItems.filter(i => i.type !== 'service' && !isPlaceholder(i.type))
 
   // Real items (non-placeholders) in both groups and ungrouped
   const realGroupItems = groups.filter(g => g.items.some(i => !isPlaceholder(i.type))).length > 0
@@ -788,39 +834,97 @@ export function Dashboard({ onEdit }: Props) {
         </div>
       )}
 
-      {/* Add Group button (edit mode only) — at top */}
-      {editMode && (
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => {}}
-          >
-            {t('edit.add_group')}
-          </button>
-        </div>
-      )}
+      {editMode ? (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => {}}
+            >
+              {t('edit.add_group')}
+            </button>
+          </div>
 
-      {/* Groups + ungrouped items share the same flex row so a 50% group leaves
-          room for ungrouped content alongside it. When no groups exist, ungrouped
-          items render standalone without the outer groups DndContext. */}
-      {(realGroupItems || editMode) ? (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleGroupDragEnd}>
-          <SortableContext items={groups.map(g => g.id)} strategy={rectSortingStrategy}>
-            <div className="dashboard-groups">
-              {groups.map(group => (
-                <SortableGroup key={group.id} group={group} editMode={editMode} onEdit={onEdit} hiddenServiceIds={guestVisibility.services} hiddenWidgetIds={guestVisibility.widgets} hiddenArrIds={guestVisibility.arr} />
-              ))}
-              {/* Ungrouped items fill remaining flex space in the same row */}
-              {ungroupedSection && (
-                <div style={{ flex: '1 1 0', minWidth: 'min(100%, 220px)' }}>
-                  {ungroupedSection}
+          {(realGroupItems || editMode) ? (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleGroupDragEnd}>
+              <SortableContext items={groups.map(g => g.id)} strategy={rectSortingStrategy}>
+                <div className="dashboard-groups">
+                  {groups.map(group => (
+                    <SortableGroup key={group.id} group={group} editMode={editMode} onEdit={onEdit} hiddenServiceIds={guestVisibility.services} hiddenWidgetIds={guestVisibility.widgets} hiddenArrIds={guestVisibility.arr} />
+                  ))}
+                  {ungroupedSection && (
+                    <div style={{ flex: '1 1 0', minWidth: 'min(100%, 220px)' }}>
+                      {ungroupedSection}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </SortableContext>
-        </DndContext>
+              </SortableContext>
+            </DndContext>
+          ) : (
+            ungroupedSection
+          )}
+        </>
       ) : (
-        ungroupedSection
+        <>
+          {fixedServiceSections.map(section => (
+            <div key={section.label} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: '0.4px',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted)',
+                  paddingBottom: 4,
+                  borderBottom: '1px solid var(--glass-border)',
+                }}
+              >
+                {section.label}
+              </div>
+              <div className="services-grid">
+                {section.items.map(service => (
+                  <DashboardServiceCard
+                    key={service.id}
+                    item={{
+                      id: `service-${service.id}`,
+                      type: 'service',
+                      service,
+                      group_id: service.group_id ?? null,
+                      position_x: service.position_x ?? 0,
+                      position_y: 0,
+                    } as DashboardServiceItem}
+                    onEdit={onEdit}
+                    editMode={false}
+                    hiddenServiceIds={guestVisibility.services}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {dashboardOtherItems.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: '0.4px',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted)',
+                  paddingBottom: 4,
+                  borderBottom: '1px solid var(--glass-border)',
+                }}
+              >
+                Weitere Elemente
+              </div>
+              <div className="services-grid">
+                {dashboardOtherItems.map(item =>
+                  renderDashboardItem(item, false, onEdit, groups, undefined, guestVisibility.services, guestVisibility.widgets, guestVisibility.arr)
+                )}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
     </div>

@@ -118,8 +118,13 @@ function SortableGroupSection({
     if (ok) deleteService(service.id)
   }
 
-  // Sort services A-Z
-  const sortedServices = [...section.services].sort((a, b) => a.name.localeCompare(b.name))
+  // Sort services by saved position first, then by name
+  const sortedServices = [...section.services].sort((a, b) => {
+    const posA = typeof a.position_x === 'number' ? a.position_x : Number.MAX_SAFE_INTEGER
+    const posB = typeof b.position_x === 'number' ? b.position_x : Number.MAX_SAFE_INTEGER
+    if (posA !== posB) return posA - posB
+    return a.name.localeCompare(b.name)
+  })
 
   return (
     <div
@@ -375,40 +380,12 @@ export function ServicesPage({ onEdit }: Props) {
   const { t } = useTranslation('services')
   const { services, groups, isAdmin } = useStore()
   const [editMode, setEditMode] = useState(false)
-  const [groupOrder, setGroupOrder] = useState<string[]>([])
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       distance: 8,
     })
   )
-
-  const { reorderGroups } = useStore()
-
-  useEffect(() => {
-    const sortedGroups = [
-      ...FIXED_GROUP_ORDER.map(name => groups.find(g => g.name === name)).filter((g): g is typeof groups[number] => Boolean(g)),
-    ]
-    const ids = sortedGroups.map(g => g.id)
-    const ungroupedId = services.some(s => !s.group_id) ? 'ungrouped' : null
-    setGroupOrder([...ids, ...(ungroupedId ? [ungroupedId] : [])])
-  }, [groups, services])
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-
-    const oldIndex = groupOrder.indexOf(String(active.id))
-    const newIndex = groupOrder.indexOf(String(over.id))
-    if (oldIndex === -1 || newIndex === -1) return
-
-    const newOrder = arrayMove(groupOrder, oldIndex, newIndex)
-    setGroupOrder(newOrder)
-
-    // Persist group ordering
-    const orderedGroupIds = newOrder.filter(id => id !== 'ungrouped')
-    await reorderGroups(orderedGroupIds)
-  }
 
   if (services.length === 0) {
     return (
@@ -423,7 +400,7 @@ export function ServicesPage({ onEdit }: Props) {
     )
   }
 
-  // Build sections: fixed groups first, then ungrouped
+  // Build sections: fixed groups in target order, then 'Ohne Gruppe'
   const sortedGroups = [
     ...FIXED_GROUP_ORDER.map(name => groups.find(g => g.name === name)).filter((g): g is typeof groups[number] => Boolean(g)),
   ]
@@ -438,7 +415,7 @@ export function ServicesPage({ onEdit }: Props) {
 
   const ungrouped = services.filter(s => !s.group_id)
   if (ungrouped.length > 0) {
-    sections.push({ label: t('ungrouped'), icon: null, services: ungrouped, id: 'ungrouped' })
+    sections.push({ label: 'Ohne Gruppe', icon: null, services: ungrouped, id: 'ungrouped' })
   }
 
   // Export/Import handlers

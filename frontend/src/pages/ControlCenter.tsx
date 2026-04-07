@@ -2,34 +2,31 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useDashboardStore } from '../store/useDashboardStore'
 import { useInstanceStore } from '../store/useInstanceStore'
+import { useHaStore } from '../store/useHaStore'
 import { useWidgetStore } from '../store/useWidgetStore'
 import { useConfirm } from '../components/ConfirmDialog'
 import type { Group, Service, Instance, BackupSource, BackupStatusResult } from '../types'
 import { Plus, AppWindow, PlugZap, LayoutGrid, Pencil, Trash2, Download, Upload, CheckCircle2, XCircle, HardDrive, RefreshCw } from 'lucide-react'
 import { api } from '../api'
 
-type TabId = 'apps' | 'integrationen' | 'widgets' | 'design' | 'appdata_backup' | 'topbar'
+type TabId = 'apps' | 'integrationen' | 'widgets'
 type ControlCenterInstanceType = 'home_assistant' | 'unraid' | 'generic'
-type ControlCenterWidgetType = 'server_status' | 'docker_overview' | 'home_assistant' | 'appdata_backup'
+type ControlCenterWidgetType = 'unraid_status' | 'docker_overview' | 'home_assistant' | 'appdata_backup'
 
 
 const TAB_LIST: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
   { id: 'apps', label: 'Einträge', icon: <AppWindow size={14} /> },
   { id: 'integrationen', label: 'Integrationen', icon: <PlugZap size={14} /> },
   { id: 'widgets', label: 'Widgets', icon: <LayoutGrid size={14} /> },
-  { id: 'topbar', label: 'Topbar', icon: <LayoutGrid size={14} /> },
-  { id: 'appdata_backup', label: 'Appdata-Backup', icon: <HardDrive size={14} /> },
-  { id: 'design', label: 'Design', icon: <LayoutGrid size={14} /> },
 ]
 
 const INSTANCE_TYPES: ControlCenterInstanceType[] = [
-  'home_assistant',
   'unraid',
-  'generic',
+  'home_assistant',
 ]
 
 const WIDGET_TYPES: ControlCenterWidgetType[] = [
-  'server_status',
+  'unraid_status',
   'docker_overview',
   'home_assistant',
   'appdata_backup',
@@ -128,9 +125,13 @@ function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
 export function ControlCenterPage() {
   const [tab, setTab] = useState<TabId>(() => {
     const v = localStorage.getItem('mardash.controlcenter.tab')
-    if (v === 'dashboard') {
+    if (v === 'dashboard' || v === 'topbar' || v === 'design') {
       localStorage.setItem('mardash.controlcenter.tab', 'apps')
       return 'apps'
+    }
+    if (v === 'appdata_backup') {
+      localStorage.setItem('mardash.controlcenter.tab', 'integrationen')
+      return 'integrationen'
     }
     return (v as TabId) || 'apps'
   })
@@ -141,15 +142,12 @@ export function ControlCenterPage() {
       {tab === 'apps' && <EntriesTab />}
       {tab === 'integrationen' && <IntegrationenTab />}
       {tab === 'widgets' && <WidgetsTab />}
-      {tab === 'topbar' && <TopbarTab />}
-      {tab === 'appdata_backup' && <AppdataBackupTab />}
-      {tab === 'design' && <DesignTab />}
     </div>
   )
 }
 
 function EntriesTab() {
-  const { groups, services, loadAll, createService, updateService, deleteService } = useStore()
+  const { groups, services, loadAll, createService, updateService, deleteService, reorderServices } = useStore()
   const { loadDashboard } = useDashboardStore()
   const { confirm } = useConfirm()
 
@@ -223,10 +221,43 @@ function EntriesTab() {
     [groups]
   )
 
-  const sortedServices = useMemo(
-    () => [...services].sort((a, b) => a.name.localeCompare(b.name)),
-    [services]
-  )
+  const sortedServices = useMemo(() => {
+    const groupRank = (groupId: string | null | undefined) => {
+      if (!groupId) return FIXED_SERVICE_GROUPS.length
+      const name = groups.find(g => g.id === groupId)?.name ?? ''
+      const idx = FIXED_SERVICE_GROUPS.indexOf(name)
+      return idx >= 0 ? idx : FIXED_SERVICE_GROUPS.length + 1
+    }
+
+    return [...services].sort((a, b) => {
+      const rankA = groupRank(a.group_id)
+      const rankB = groupRank(b.group_id)
+      if (rankA !== rankB) return rankA - rankB
+
+      const posA = typeof a.position_x === 'number' ? a.position_x : Number.MAX_SAFE_INTEGER
+      const posB = typeof b.position_x === 'number' ? b.position_x : Number.MAX_SAFE_INTEGER
+      if (posA !== posB) return posA - posB
+
+      return a.name.localeCompare(b.name)
+    })
+  }, [services, groups])
+
+  const serviceSections = useMemo(() => {
+    const sections = FIXED_SERVICE_GROUPS.map(name => {
+      const group = groups.find(g => g.name === name)
+      return {
+        label: name,
+        services: group ? sortedServices.filter(s => s.group_id === group.id) : [],
+      }
+    })
+
+    const ungrouped = sortedServices.filter(s => !s.group_id)
+
+    return [
+      ...sections.filter(section => section.services.length > 0),
+      ...(ungrouped.length > 0 ? [{ label: 'Ohne Gruppe', services: ungrouped }] : []),
+    ]
+  }, [groups, sortedServices])
 
   const getGroupLabel = (groupId: string | null | undefined) => {
     if (!groupId) return 'Ohne Gruppe'
@@ -238,6 +269,26 @@ function EntriesTab() {
     if (service.icon_url) return 'Upload lokal'
     if (typeof service.icon === 'string' && service.icon.startsWith('http')) return 'externe URL'
     return 'kein Icon'
+  }
+
+  const moveServiceWithinGroup = async (serviceId: string, direction: -1 | 1) => {
+    const currentService = services.find(s => s.id === serviceId)
+    if (!currentService) return
+
+    const currentGroupId = currentService.group_id ?? null
+    const sameGroup = sortedServices.filter(s => (s.group_id ?? null) === currentGroupId)
+    const ids = sameGroup.map(s => s.id)
+    const index = ids.indexOf(serviceId)
+    const target = index + direction
+
+    if (index < 0 || target < 0 || target >= ids.length) return
+
+    const next = [...ids]
+    const [moved] = next.splice(index, 1)
+    next.splice(target, 0, moved)
+
+    await reorderServices(currentGroupId, next)
+    await loadAll()
   }
 
   const submitService = async () => {
@@ -535,15 +586,31 @@ function EntriesTab() {
           </button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, maxHeight: 420, overflow: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
           <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             Jeder Eintrag nutzt dieselbe Logik: Name, URL, Gruppe, Statuscheck und Icon.
           </div>
-          {sortedServices.length === 0 ? (
+          {serviceSections.length === 0 ? (
             <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)' }}>
               Noch keine Einträge vorhanden.
             </div>
-          ) : sortedServices.map(s => {
+          ) : serviceSections.map(section => (
+            <div key={section.label} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: '0.4px',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted)',
+                  paddingBottom: 4,
+                  borderBottom: '1px solid var(--glass-border)',
+                  marginTop: 4,
+                }}
+              >
+                {section.label}
+              </div>
+              {section.services.map(s => {
             const onDashboard = dashboardServiceIds.includes(s.id)
             return (
             <div key={s.id} className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
@@ -556,7 +623,33 @@ function EntriesTab() {
                   <span>Icon-Typ: {getServiceIconKind(s)}</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                {(() => {
+                  const ids = section.services.map(x => x.id)
+                  const idx = ids.indexOf(s.id)
+                  return (
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={async () => { await moveServiceWithinGroup(s.id, -1) }}
+                        disabled={idx <= 0}
+                        title="Nach oben"
+                        style={{ minWidth: 34, padding: '6px 8px' }}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={async () => { await moveServiceWithinGroup(s.id, 1) }}
+                        disabled={idx === -1 || idx >= ids.length - 1}
+                        title="Nach unten"
+                        style={{ minWidth: 34, padding: '6px 8px' }}
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  )
+                })()}
                 <button
                   className="btn btn-ghost btn-sm"
                   onClick={async () => {
@@ -607,69 +700,17 @@ function EntriesTab() {
               </div>
             </div>
           )})}
-        </div>
-      </SectionCard>
-
-    </div>
-  )
-}
-
-function TopbarTab() {
-  const items = [
-    { key: 'time', label: 'Datum / Uhrzeit', note: 'bereits aktiv' },
-    { key: 'unraid', label: 'Unraid', note: 'Ampel + interner Link zur Unraid-Seite' },
-    { key: 'backup', label: 'Appdata-Backup', note: 'Ampelstatus, Detailprüfung bei Rot' },
-    { key: 'weather', label: 'Wetter', note: 'kompakt + externer Wetter/Radar-Link' },
-    { key: 'pollen', label: 'Pollenflug', note: 'kompakt + externer Pollen-Link' },
-  ]
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 760px)', gap: 16 }}>
-      <SectionCard title="Topbar" subtitle="Feste Zielreihenfolge statt Live-Bearbeitung in der Topbar.">
-        <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)', fontSize: 13 }}>
-          Die Topbar bleibt reine Anzeige. Konfiguration erfolgt zentral hier im Control Center.
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {items.map((item, idx) => (
-            <div
-              key={item.key}
-              className="glass"
-              style={{
-                padding: 12,
-                borderRadius: 'var(--radius-lg)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: 12,
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 700 }}>{idx + 1}. {item.label}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{item.note}</div>
-              </div>
-              <span
-                style={{
-                  fontSize: 11,
-                  padding: '3px 8px',
-                  borderRadius: 999,
-                  background: 'rgba(var(--accent-rgb), 0.10)',
-                  border: '1px solid rgba(var(--accent-rgb), 0.20)',
-                  color: 'var(--accent)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                geplant
-              </span>
             </div>
           ))}
         </div>
       </SectionCard>
+
     </div>
   )
 }
 
-function AppdataBackupTab() {
+
+function AppdataBackupTab({ unraidReady }: { unraidReady: boolean }) {
   const [sourceId, setSourceId] = useState<string | null>(null)
   const [name, setName] = useState('Appdata-Backup')
   const [logPath, setLogPath] = useState('/boot/logs/CA_backup.log')
@@ -679,6 +720,8 @@ function AppdataBackupTab() {
   const [status, setStatus] = useState<BackupStatusResult | null>(null)
 
   useEffect(() => {
+    if (!unraidReady) return
+
     const load = async () => {
       setLoading(true)
       try {
@@ -701,12 +744,14 @@ function AppdataBackupTab() {
   }, [])
 
   const refreshStatus = async () => {
+    if (!unraidReady) return
     const data = await (await import('../api')).api.backup.status()
     const found = data.sources.find((s: BackupStatusResult) => s.type === 'ca_backup') ?? null
     setStatus(found)
   }
 
   const save = async () => {
+    if (!unraidReady) return
     setSaving(true)
     try {
       const payload = {
@@ -728,26 +773,33 @@ function AppdataBackupTab() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 720px)', gap: 16 }}>
-      <SectionCard title="Appdata-Backup-Monitor" subtitle="Überwacht das Unraid CA Backup Log für Appdata-Backups.">
-        <input className="form-input" placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
-        <input className="form-input" placeholder="/boot/logs/CA_backup.log" value={logPath} onChange={e => setLogPath(e.target.value)} />
+    <SectionCard title="Appdata-Backup" subtitle="Überwacht das Unraid CA Backup Log für Appdata-Backups.">
+        {!unraidReady && (
+          <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)', fontSize: 13 }}>
+            Erst Unraid einrichten. Danach kann Appdata-Backup aktiviert und geprüft werden.
+          </div>
+        )}
+
+        <input className="form-input" placeholder="Name" value={name} onChange={e => setName(e.target.value)} disabled={!unraidReady} />
+        <input className="form-input" placeholder="/boot/logs/CA_backup.log" value={logPath} onChange={e => setLogPath(e.target.value)} disabled={!unraidReady} />
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-          <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />
+          <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} disabled={!unraidReady} />
           Aktiv
         </label>
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn btn-primary" disabled={saving || !name.trim() || !logPath.trim()} onClick={save} style={{ gap: 8 }}>
+          <button className="btn btn-primary" disabled={!unraidReady || saving || !name.trim() || !logPath.trim()} onClick={save} style={{ gap: 8 }}>
             <HardDrive size={14} /> Speichern
           </button>
-          <button className="btn btn-ghost" disabled={loading} onClick={refreshStatus} style={{ gap: 8 }}>
+          <button className="btn btn-ghost" disabled={!unraidReady || loading} onClick={refreshStatus} style={{ gap: 8 }}>
             <RefreshCw size={14} /> Status laden
           </button>
         </div>
 
         <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', marginTop: 8 }}>
-          {!status ? (
+          {!unraidReady ? (
+            <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Unraid ist noch nicht eingerichtet.</div>
+          ) : !status ? (
             <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Noch kein Status geladen.</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
@@ -758,222 +810,23 @@ function AppdataBackupTab() {
             </div>
           )}
         </div>
-      </SectionCard>
-    </div>
+    </SectionCard>
   )
 }
 
-function DesignTab() {
-  const { backgrounds, loadBackgrounds, uploadBackground, deleteBackground } = useStore()
-  const { confirm } = useConfirm()
-  const [uploadName, setUploadName] = useState('')
-  const [uploadFile, setUploadFile] = useState<File | null>(null)
-  const [busy, setBusy] = useState(false)
-
-  useEffect(() => {
-    loadBackgrounds().catch(() => {})
-  }, [])
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 720px)', gap: 16 }}>
-      <SectionCard title="Design" subtitle="Hintergrundbilder für dein lokales Dashboard.">
-        <input className="form-input" placeholder="Name" value={uploadName} onChange={e => setUploadName(e.target.value)} />
-        <input className="form-input" type="file" accept="image/*" onChange={e => setUploadFile(e.target.files?.[0] ?? null)} />
-        <button
-          className="btn btn-primary"
-          disabled={busy || !uploadName.trim() || !uploadFile}
-          onClick={async () => {
-            if (!uploadFile) return
-            setBusy(true)
-            try {
-              await uploadBackground(uploadName.trim(), uploadFile)
-              setUploadName('')
-              setUploadFile(null)
-              await loadBackgrounds()
-            } finally {
-              setBusy(false)
-            }
-          }}
-          style={{ gap: 8 }}
-        >
-          <Upload size={14} /> Hintergrund hochladen
-        </button>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, maxHeight: 420, overflow: 'auto' }}>
-          {backgrounds.length === 0 && (
-            <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)' }}>
-              Noch keine Hintergrundbilder vorhanden.
-            </div>
-          )}
-
-          {backgrounds.map(bg => (
-            <div key={bg.id} className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 600 }}>{bg.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{bg.id}</div>
-              </div>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={async () => {
-                  const ok = await confirm({ title: `"${bg.name}" löschen?`, danger: true, confirmLabel: 'Löschen' })
-                  if (!ok) return
-                  await deleteBackground(bg.id)
-                  await loadBackgrounds()
-                }}
-                style={{ gap: 6 }}
-              >
-                <Trash2 size={14} /> Löschen
-              </button>
-            </div>
-          ))}
-        </div>
-      </SectionCard>
-    </div>
-  )
-}
 
 
 function IntegrationenTab() {
   const { instances, createInstance, updateInstance, deleteInstance, loadInstances, testInstance } = useInstanceStore()
+  const { instances: haInstances, loadInstances: loadHaInstances, createInstance: createHaInstance, updateInstance: updateHaInstance, deleteInstance: deleteHaInstance } = useHaStore()
+  const { widgets, createWidget, updateWidget, loadWidgets } = useWidgetStore()
 
-  const [type, setType] = useState<ControlCenterInstanceType>('generic')
-  const [name, setName] = useState('')
-  const [url, setUrl] = useState('')
-  const [token, setToken] = useState('')
-  const [apiKey, setApiKey] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [testState, setTestState] = useState<Record<string, { ok: boolean; error?: string } | null>>({})
-
-  useEffect(() => {
-    loadInstances().catch(() => {})
-  }, [])
-
-  const resetForm = () => {
-    setEditingId(null)
-    setType('generic')
-    setName('')
-    setUrl('')
-    setToken('')
-    setApiKey('')
-  }
-
-  const submitInstance = async () => {
-    setBusy(true)
-    try {
-      const payload = {
-        type,
-        name: name.trim(),
-        url: url.trim(),
-        token: token.trim() || undefined,
-        api_key: apiKey.trim() || undefined,
-        enabled: true,
-      }
-
-      if (editingId) {
-        await updateInstance(editingId, payload)
-      } else {
-        await createInstance(payload)
-      }
-
-      resetForm()
-      await loadInstances()
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 560px)', gap: 16 }}>
-      <SectionCard title="Instanz anlegen / bearbeiten" subtitle="Zentrale Anlage für Integrationen und externe Dienste.">
-        <select className="form-input" value={type} onChange={e => setType(e.target.value as ControlCenterInstanceType)}>
-          {INSTANCE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
-        </select>
-        <input className="form-input" placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
-        <input className="form-input" placeholder="URL" value={url} onChange={e => setUrl(e.target.value)} />
-        <input
-          className="form-input"
-          placeholder={type === 'home_assistant' ? 'Token (nur neu setzen, wenn ändern)' : 'API-Key / Token (nur neu setzen, wenn ändern)'}
-          value={type === 'home_assistant' ? token : apiKey}
-          onChange={e => type === 'home_assistant' ? setToken(e.target.value) : setApiKey(e.target.value)}
-        />
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button
-            className="btn btn-primary"
-            disabled={busy || !name.trim() || !url.trim()}
-            onClick={submitInstance}
-            style={{ gap: 8 }}
-          >
-            <PlugZap size={14} /> {editingId ? 'Instanz speichern' : 'Instanz anlegen'}
-          </button>
-          {editingId && (
-            <button className="btn btn-ghost" onClick={resetForm}>
-              Abbrechen
-            </button>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, maxHeight: 420, overflow: 'auto' }}>
-          {instances.slice().sort((a, b) => a.name.localeCompare(b.name)).slice(0, 10).map((inst: Instance) => {
-            const result = testState[inst.id]
-            return (
-              <div key={inst.id} className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 600 }}>{inst.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{inst.type} · {inst.url}</div>
-                  {result && (
-                    <div style={{ fontSize: 12, color: result.ok ? 'var(--status-online)' : 'var(--status-offline)', marginTop: 4 }}>
-                      {result.ok ? 'Test erfolgreich' : (result.error || 'Test fehlgeschlagen')}
-                    </div>
-                  )}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={async () => {
-                      const res = await testInstance(inst.id)
-                      setTestState(prev => ({ ...prev, [inst.id]: res }))
-                    }}
-                    style={{ gap: 6 }}
-                  >
-                    {result?.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-                    Testen
-                  </button>
-
-                  <RowActions
-                    onEdit={() => {
-                      setEditingId(inst.id)
-                      setType(inst.type as InstanceType)
-                      setName(inst.name)
-                      setUrl(inst.url)
-                      setToken('')
-                      setApiKey('')
-                    }}
-                    onDelete={async () => {
-                      const ok = window.confirm(`"${inst.name}" löschen?`)
-                      if (!ok) return
-                      await deleteInstance(inst.id)
-                      await loadInstances()
-                      if (editingId === inst.id) resetForm()
-                    }}
-                  />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </SectionCard>
-    </div>
-  )
-}
-
-function WidgetsTab() {
-  const { widgets, createWidget, updateWidget, deleteWidget, loadWidgets } = useWidgetStore()
-  const { confirm } = useConfirm()
-
-  const [name, setName] = useState('')
-  const [type, setType] = useState<WidgetType>('server_status')
-  const [displayLocation, setDisplayLocation] = useState('none')
+  const [unraidName, setUnraidName] = useState('Unraid')
+  const [unraidUrl, setUnraidUrl] = useState('')
+  const [unraidToken, setUnraidToken] = useState('')
+  const [haName, setHaName] = useState('Home Assistant')
+  const [haUrl, setHaUrl] = useState('')
+  const [haToken, setHaToken] = useState('')
   const [weatherInputMode, setWeatherInputMode] = useState<'city' | 'coords'>('city')
   const [weatherCity, setWeatherCity] = useState('')
   const [weatherLat, setWeatherLat] = useState('')
@@ -981,209 +834,512 @@ function WidgetsTab() {
   const [weatherLocationName, setWeatherLocationName] = useState('')
   const [weatherGeoError, setWeatherGeoError] = useState('')
   const [weatherGeocoding, setWeatherGeocoding] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [busy, setBusy] = useState<'unraid' | 'home_assistant' | 'weather' | null>(null)
+  const [testState, setTestState] = useState<Record<string, { ok: boolean; error?: string } | null>>({})
+
+  useEffect(() => {
+    loadInstances().catch(() => {})
+    loadHaInstances().catch(() => {})
+    loadWidgets().catch(() => {})
+  }, [])
+
+  const unraidInstance = instances.find(i => i.type === 'unraid') ?? null
+  const haInstance = haInstances[0] ?? null
+
+  useEffect(() => {
+    if (unraidInstance) {
+      setUnraidName(unraidInstance.name || 'Unraid')
+      setUnraidUrl(unraidInstance.url || '')
+      setUnraidToken('')
+    }
+  }, [unraidInstance?.id, unraidInstance?.name, unraidInstance?.url])
+
+  useEffect(() => {
+    if (haInstance) {
+      setHaName(haInstance.name || 'Home Assistant')
+      setHaUrl(haInstance.url || '')
+      setHaToken('')
+    }
+  }, [haInstance?.id, haInstance?.name, haInstance?.url])
+
+  useEffect(() => {
+    const weatherWidget = widgets.find(w => w.type === 'weather')
+    if (!weatherWidget) return
+    const cfg = weatherWidget.config as any
+    if (cfg?.city_name) {
+      setWeatherInputMode('city')
+      setWeatherCity(cfg.city_name)
+    } else {
+      setWeatherInputMode('coords')
+      setWeatherCity('')
+    }
+    setWeatherLat(String(cfg?.lat ?? ''))
+    setWeatherLon(String(cfg?.lon ?? ''))
+    setWeatherLocationName(cfg?.location_name ?? '')
+    setWeatherGeoError('')
+  }, [widgets])
+
+  const saveIntegration = async (kind: 'unraid' | 'home_assistant') => {
+    setBusy(kind)
+    try {
+      if (kind === 'unraid') {
+        const payload = {
+          type: 'unraid' as const,
+          name: unraidName.trim() || 'Unraid',
+          url: unraidUrl.trim(),
+          api_key: unraidToken.trim() || undefined,
+          enabled: true,
+        }
+        if (unraidInstance) {
+          await updateInstance(unraidInstance.id, payload)
+        } else {
+          await createInstance(payload)
+        }
+      } else {
+        const payload = {
+          name: haName.trim() || 'Home Assistant',
+          url: haUrl.trim(),
+          token: haToken.trim() || undefined,
+          enabled: true,
+        }
+        if (haInstance) {
+          await updateHaInstance(haInstance.id, payload)
+        } else {
+          await createHaInstance(payload)
+        }
+      }
+
+      await loadInstances()
+      await loadHaInstances()
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const removeIntegration = async (kind: 'unraid' | 'home_assistant') => {
+    const instance = kind === 'unraid' ? unraidInstance : haInstance
+    if (!instance) return
+    const ok = window.confirm(`"${instance.name}" löschen?`)
+    if (!ok) return
+    if (kind === 'unraid') {
+      await deleteInstance(instance.id)
+      await loadInstances()
+    } else {
+      await deleteHaInstance(instance.id)
+      await loadHaInstances()
+    }
+  }
+
+  const testIntegration = async (kind: 'unraid' | 'home_assistant') => {
+    const instance = kind === 'unraid' ? unraidInstance : haInstance
+    if (!instance) return
+    const res = kind === 'unraid'
+      ? await testInstance(instance.id)
+      : await api.ha.instances.test(instance.id)
+    setTestState(prev => ({ ...prev, [instance.id]: res }))
+  }
+
+  const weatherWidget = widgets.find(w => w.type === 'weather') ?? null
+
+  const saveWeatherIntegration = async () => {
+    setBusy('weather')
+    try {
+      let config: Record<string, unknown> = {}
+
+      if (weatherInputMode === 'city') {
+        if (!weatherCity.trim()) throw new Error('Stadt fehlt')
+        setWeatherGeoError('')
+        setWeatherGeocoding(true)
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(weatherCity.trim())}&format=json&limit=1`)
+          const geoData = await res.json() as Array<{ lat: string; lon: string; display_name: string }>
+          if (!geoData.length) {
+            setWeatherGeoError('Stadt nicht gefunden')
+            setWeatherGeocoding(false)
+            return
+          }
+          const locationName = weatherLocationName.trim() || geoData[0].display_name.split(',')[0].trim()
+          config = {
+            lat: parseFloat(geoData[0].lat),
+            lon: parseFloat(geoData[0].lon),
+            location_name: locationName,
+            city_name: weatherCity.trim(),
+          }
+        } catch {
+          setWeatherGeoError('Geocodierung fehlgeschlagen')
+          setWeatherGeocoding(false)
+          return
+        }
+        setWeatherGeocoding(false)
+      } else {
+        const latNum = parseFloat(weatherLat)
+        const lonNum = parseFloat(weatherLon)
+        if (Number.isNaN(latNum) || Number.isNaN(lonNum)) throw new Error('Koordinaten fehlen')
+        config = {
+          lat: latNum,
+          lon: lonNum,
+          ...(weatherLocationName.trim() ? { location_name: weatherLocationName.trim() } : {}),
+        }
+      }
+
+      const payload = {
+        type: 'weather',
+        name: 'Wetter',
+        config,
+        display_location: 'none',
+        show_in_topbar: false,
+      }
+
+      if (weatherWidget) {
+        await updateWidget(weatherWidget.id, payload)
+      } else {
+        await createWidget(payload)
+      }
+
+      await loadWidgets()
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 560px))', gap: 16 }}>
+        <SectionCard title="Unraid" subtitle="Feste Integration für Status, Links und Appdata-Backup.">
+          <input className="form-input" placeholder="Name" value={unraidName} onChange={e => setUnraidName(e.target.value)} />
+          <input className="form-input" placeholder="URL" value={unraidUrl} onChange={e => setUnraidUrl(e.target.value)} />
+          <input
+            className="form-input"
+            placeholder="Unraid API-Key / Token (nur neu setzen, wenn ändern)"
+            value={unraidToken}
+            onChange={e => setUnraidToken(e.target.value)}
+          />
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-primary"
+              disabled={busy === 'unraid' || !unraidUrl.trim()}
+              onClick={() => { void saveIntegration('unraid') }}
+              style={{ gap: 8 }}
+            >
+              <PlugZap size={14} /> {unraidInstance ? 'Speichern' : 'Einrichten'}
+            </button>
+            <button
+              className="btn btn-ghost"
+              disabled={!unraidInstance}
+              onClick={() => { void testIntegration('unraid') }}
+              style={{ gap: 8 }}
+            >
+              {testState[unraidInstance?.id || '']?.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+              Testen
+            </button>
+            <button
+              className="btn btn-ghost"
+              disabled={!unraidInstance}
+              onClick={() => { void removeIntegration('unraid') }}
+              style={{ gap: 8 }}
+            >
+              <Trash2 size={14} /> Entfernen
+            </button>
+          </div>
+
+          <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)' }}>
+            {unraidInstance
+              ? (testState[unraidInstance.id]
+                  ? (testState[unraidInstance.id]?.ok ? 'Test erfolgreich.' : (testState[unraidInstance.id]?.error || 'Test fehlgeschlagen.'))
+                  : 'Integration eingerichtet.')
+              : 'Noch nicht eingerichtet.'}
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Home Assistant" subtitle="Feste Integration für Entitäten und Home-Assistant-Widgets.">
+          <input className="form-input" placeholder="Name" value={haName} onChange={e => setHaName(e.target.value)} />
+          <input className="form-input" placeholder="URL" value={haUrl} onChange={e => setHaUrl(e.target.value)} />
+          <input
+            className="form-input"
+            placeholder="Home-Assistant-Token (nur neu setzen, wenn ändern)"
+            value={haToken}
+            onChange={e => setHaToken(e.target.value)}
+          />
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-primary"
+              disabled={busy === 'home_assistant' || !haUrl.trim()}
+              onClick={() => { void saveIntegration('home_assistant') }}
+              style={{ gap: 8 }}
+            >
+              <PlugZap size={14} /> {haInstance ? 'Speichern' : 'Einrichten'}
+            </button>
+            <button
+              className="btn btn-ghost"
+              disabled={!haInstance}
+              onClick={() => { void testIntegration('home_assistant') }}
+              style={{ gap: 8 }}
+            >
+              {testState[haInstance?.id || '']?.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+              Testen
+            </button>
+            <button
+              className="btn btn-ghost"
+              disabled={!haInstance}
+              onClick={() => { void removeIntegration('home_assistant') }}
+              style={{ gap: 8 }}
+            >
+              <Trash2 size={14} /> Entfernen
+            </button>
+          </div>
+
+          <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)' }}>
+            {haInstance
+              ? (testState[haInstance.id]
+                  ? (testState[haInstance.id]?.ok ? 'Test erfolgreich.' : (testState[haInstance.id]?.error || 'Test fehlgeschlagen.'))
+                  : 'Integration eingerichtet.')
+              : 'Noch nicht eingerichtet.'}
+          </div>
+        </SectionCard>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 560px))', gap: 16 }}>
+        <SectionCard title="Wetter" subtitle="Feste Integration für Wetterdaten und spätere Wetter-Widgets.">
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => { setWeatherInputMode('city'); setWeatherGeoError('') }}
+              style={{ flex: 1 }}
+            >
+              Stadt
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => { setWeatherInputMode('coords'); setWeatherGeoError('') }}
+              style={{ flex: 1 }}
+            >
+              Koordinaten
+            </button>
+          </div>
+
+          {weatherInputMode === 'city' ? (
+            <input
+              className="form-input"
+              placeholder="z. B. Gelsenkirchen-Buer"
+              value={weatherCity}
+              onChange={e => { setWeatherCity(e.target.value); setWeatherGeoError('') }}
+            />
+          ) : (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input className="form-input" placeholder="Breitengrad" value={weatherLat} onChange={e => setWeatherLat(e.target.value)} />
+              <input className="form-input" placeholder="Längengrad" value={weatherLon} onChange={e => setWeatherLon(e.target.value)} />
+            </div>
+          )}
+
+          <input
+            className="form-input"
+            placeholder="Anzeigename, z. B. Buer"
+            value={weatherLocationName}
+            onChange={e => setWeatherLocationName(e.target.value)}
+          />
+
+          {weatherGeoError && <div style={{ fontSize: 12, color: 'var(--status-offline)' }}>{weatherGeoError}</div>}
+          {weatherGeocoding && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Stadt wird gesucht…</div>}
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-primary"
+              disabled={busy === 'weather'}
+              onClick={() => { void saveWeatherIntegration() }}
+              style={{ gap: 8 }}
+            >
+              <PlugZap size={14} /> {weatherWidget ? 'Speichern' : 'Einrichten'}
+            </button>
+          </div>
+
+          <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)' }}>
+            {weatherWidget ? 'Integration eingerichtet.' : 'Noch nicht eingerichtet.'}
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Pollen" subtitle="Feste Integration für spätere Pollen-Daten und Widgets.">
+          <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)', fontSize: 13 }}>
+            Dieser Block ist vorbereitet. Die eigentliche Pollen-Datenquelle kommt im nächsten Schritt.
+          </div>
+          <button className="btn btn-ghost" disabled style={{ gap: 8 }}>
+            <PlugZap size={14} /> Bald verfügbar
+          </button>
+        </SectionCard>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 720px)', gap: 16 }}>
+        <AppdataBackupTab unraidReady={Boolean(unraidInstance)} />
+      </div>
+    </div>
+  )
+}
+
+function WidgetsTab() {
+  const { widgets, createWidget, updateWidget, deleteWidget, loadWidgets } = useWidgetStore()
+  const { instances } = useInstanceStore()
+  const { confirm } = useConfirm()
+
+  const [busy, setBusy] = useState<ControlCenterWidgetType | null>(null)
 
   useEffect(() => {
     loadWidgets().catch(() => {})
   }, [])
 
+  const unraidReady = instances.some(i => i.type === 'unraid')
+  const haReady = instances.some(i => i.type === 'home_assistant')
+
+  const widgetByType = (type: ControlCenterWidgetType) => widgets.find(w => w.type === type) ?? null
+
+  const saveWidget = async (type: ControlCenterWidgetType, name: string, displayLocation: 'none' | 'topbar' | 'sidebar' = 'none') => {
+    setBusy(type)
+    try {
+      const payload = {
+        type,
+        name,
+        config: {},
+        display_location: displayLocation,
+        show_in_topbar: displayLocation === 'topbar',
+      }
+
+      const existing = widgetByType(type)
+      if (existing) {
+        await updateWidget(existing.id, payload)
+      } else {
+        await createWidget(payload)
+      }
+
+      await loadWidgets()
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const removeWidget = async (type: ControlCenterWidgetType) => {
+    const existing = widgetByType(type)
+    if (!existing) return
+    const ok = await confirm({ title: `"${existing.name}" löschen?`, danger: true, confirmLabel: 'Löschen' })
+    if (!ok) return
+    await deleteWidget(existing.id)
+    await loadWidgets()
+  }
+
+  const renderStatus = (type: ControlCenterWidgetType, missingDependencyText: string | null = null) => {
+    const existing = widgetByType(type)
+    if (missingDependencyText) return missingDependencyText
+    if (!existing) return 'Noch nicht eingerichtet.'
+    return `Eingerichtet · ${existing.display_location ?? 'content'}`
+  }
+
+  const unraidStatusWidget = widgetByType('unraid_status')
+  const dockerOverviewWidget = widgetByType('docker_overview')
+  const homeAssistantWidget = widgetByType('home_assistant')
+  const appdataBackupWidget = widgetByType('appdata_backup')
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 560px)', gap: 16 }}>
-      <SectionCard title="Widget anlegen" subtitle="Zentrale Widget-Anlage für Dashboard, Topbar oder Sidebar.">
-        <input className="form-input" placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
-        <select className="form-input" value={type} onChange={e => setType(e.target.value as WidgetType)}>
-          {WIDGET_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
-        </select>
-        <select className="form-input" value={displayLocation} onChange={e => setDisplayLocation(e.target.value)}>
-          <option value="none">Dashboard</option>
-          <option value="topbar">Topbar</option>
-          <option value="sidebar">Sidebar</option>
-        </select>
-
-        {type === 'weather' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => { setWeatherInputMode('city'); setWeatherGeoError('') }}
-                style={{ flex: 1 }}
-              >
-                Stadt
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => { setWeatherInputMode('coords'); setWeatherGeoError('') }}
-                style={{ flex: 1 }}
-              >
-                Koordinaten
-              </button>
-            </div>
-
-            {weatherInputMode === 'city' ? (
-              <input
-                className="form-input"
-                placeholder="z. B. Gelsenkirchen-Buer"
-                value={weatherCity}
-                onChange={e => { setWeatherCity(e.target.value); setWeatherGeoError('') }}
-              />
-            ) : (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input className="form-input" placeholder="Breitengrad" value={weatherLat} onChange={e => setWeatherLat(e.target.value)} />
-                <input className="form-input" placeholder="Längengrad" value={weatherLon} onChange={e => setWeatherLon(e.target.value)} />
-              </div>
-            )}
-
-            <input
-              className="form-input"
-              placeholder="Anzeigename, z. B. Buer"
-              value={weatherLocationName}
-              onChange={e => setWeatherLocationName(e.target.value)}
-            />
-
-            {weatherGeoError && <div style={{ fontSize: 12, color: 'var(--status-offline)' }}>{weatherGeoError}</div>}
-            {weatherGeocoding && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Stadt wird gesucht…</div>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 560px))', gap: 16 }}>
+        <SectionCard title="Unraid Status" subtitle="Status-Widget für den Unraid-Server.">
+          <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)' }}>
+            {renderStatus('unraid_status', unraidReady ? null : 'Erst Unraid einrichten.')}
           </div>
-        )}
-
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            className="btn btn-primary"
-            disabled={busy || !name.trim()}
-            onClick={async () => {
-              setBusy(true)
-              try {
-                let config: object = {}
-
-                if (type === 'weather') {
-                  if (weatherInputMode === 'city') {
-                    if (!weatherCity.trim()) throw new Error('Stadt fehlt')
-                    setWeatherGeoError('')
-                    setWeatherGeocoding(true)
-                    try {
-                      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(weatherCity.trim())}&format=json&limit=1`)
-                      const geoData = await res.json() as Array<{ lat: string; lon: string; display_name: string }>
-                      if (!geoData.length) {
-                        setWeatherGeoError('Stadt nicht gefunden')
-                        setWeatherGeocoding(false)
-                        return
-                      }
-                      const locationName = weatherLocationName.trim() || geoData[0].display_name.split(',')[0].trim()
-                      config = {
-                        lat: parseFloat(geoData[0].lat),
-                        lon: parseFloat(geoData[0].lon),
-                        location_name: locationName,
-                        city_name: weatherCity.trim(),
-                      } satisfies WeatherWidgetConfig
-                    } catch {
-                      setWeatherGeoError('Geocodierung fehlgeschlagen')
-                      setWeatherGeocoding(false)
-                      return
-                    }
-                    setWeatherGeocoding(false)
-                  } else {
-                    const latNum = parseFloat(weatherLat)
-                    const lonNum = parseFloat(weatherLon)
-                    if (Number.isNaN(latNum) || Number.isNaN(lonNum)) throw new Error('Koordinaten fehlen')
-                    config = {
-                      lat: latNum,
-                      lon: lonNum,
-                      ...(weatherLocationName.trim() ? { location_name: weatherLocationName.trim() } : {}),
-                    } satisfies WeatherWidgetConfig
-                  }
-                }
-
-                const payload = {
-                  type,
-                  name: name.trim(),
-                  config,
-                  display_location: displayLocation,
-                  show_in_topbar: displayLocation === 'topbar',
-                }
-                if (editingId) {
-                  await updateWidget(editingId, payload)
-                } else {
-                  await createWidget(payload)
-                }
-                setName('')
-                setType('server_status')
-                setDisplayLocation('none')
-                setEditingId(null)
-                setWeatherCity('')
-                setWeatherLat('')
-                setWeatherLon('')
-                setWeatherLocationName('')
-                setWeatherGeoError('')
-                await loadWidgets()
-              } finally {
-                setBusy(false)
-              }
-            }}
-            style={{ gap: 8 }}
-          >
-            <LayoutGrid size={14} /> {editingId ? 'Widget speichern' : 'Widget anlegen'}
-          </button>
-          {editingId && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-primary"
+              disabled={!unraidReady || busy === 'unraid_status'}
+              onClick={() => { void saveWidget('unraid_status', 'Unraid Status', 'none') }}
+              style={{ gap: 8 }}
+            >
+              <LayoutGrid size={14} /> {unraidStatusWidget ? 'Speichern' : 'Einrichten'}
+            </button>
             <button
               className="btn btn-ghost"
-              onClick={() => {
-                setEditingId(null)
-                setName('')
-                setType('server_status')
-                setDisplayLocation('none')
-                setWeatherCity('')
-                setWeatherLat('')
-                setWeatherLon('')
-                setWeatherLocationName('')
-                setWeatherGeoError('')
-              }}
+              disabled={!unraidStatusWidget}
+              onClick={() => { void removeWidget('unraid_status') }}
+              style={{ gap: 8 }}
             >
-              Abbrechen
+              <Trash2 size={14} /> Entfernen
             </button>
-          )}
-        </div>
+          </div>
+        </SectionCard>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, maxHeight: 420, overflow: 'auto' }}>
-          {widgets.slice().sort((a, b) => a.name.localeCompare(b.name)).slice(0, 10).map(w => (
-            <div key={w.id} className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 600 }}>{w.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{w.type} · {w.display_location ?? 'content'}</div>
-              </div>
-              <RowActions
-                onEdit={() => {
-                  setEditingId(w.id)
-                  setName(w.name)
-                  setType(w.type as WidgetType)
-                  setDisplayLocation((w.display_location as string) || 'none')
-                  if (w.type === 'weather') {
-                    const cfg = w.config as WeatherWidgetConfig
-                    if (cfg.city_name) {
-                      setWeatherInputMode('city')
-                      setWeatherCity(cfg.city_name)
-                    } else {
-                      setWeatherInputMode('coords')
-                      setWeatherCity('')
-                    }
-                    setWeatherLat(String(cfg.lat ?? ''))
-                    setWeatherLon(String(cfg.lon ?? ''))
-                    setWeatherLocationName(cfg.location_name ?? '')
-                    setWeatherGeoError('')
-                  }
-                }}
-                onDelete={async () => {
-                  const ok = await confirm({ title: `"${w.name}" löschen?`, danger: true, confirmLabel: 'Löschen' })
-                  if (!ok) return
-                  await deleteWidget(w.id)
-                  await loadWidgets()
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      </SectionCard>
+        <SectionCard title="Docker Übersicht" subtitle="Widget für Docker-Container auf Unraid.">
+          <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)' }}>
+            {renderStatus('docker_overview', unraidReady ? null : 'Erst Unraid einrichten.')}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-primary"
+              disabled={!unraidReady || busy === 'docker_overview'}
+              onClick={() => { void saveWidget('docker_overview', 'Docker Übersicht', 'none') }}
+              style={{ gap: 8 }}
+            >
+              <LayoutGrid size={14} /> {dockerOverviewWidget ? 'Speichern' : 'Einrichten'}
+            </button>
+            <button
+              className="btn btn-ghost"
+              disabled={!dockerOverviewWidget}
+              onClick={() => { void removeWidget('docker_overview') }}
+              style={{ gap: 8 }}
+            >
+              <Trash2 size={14} /> Entfernen
+            </button>
+          </div>
+        </SectionCard>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 560px))', gap: 16 }}>
+        <SectionCard title="Home Assistant" subtitle="Widget für Home-Assistant-Daten.">
+          <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)' }}>
+            {renderStatus('home_assistant', haReady ? null : 'Erst Home Assistant einrichten.')}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-primary"
+              disabled={!haReady || busy === 'home_assistant'}
+              onClick={() => { void saveWidget('home_assistant', 'Home Assistant', 'none') }}
+              style={{ gap: 8 }}
+            >
+              <LayoutGrid size={14} /> {homeAssistantWidget ? 'Speichern' : 'Einrichten'}
+            </button>
+            <button
+              className="btn btn-ghost"
+              disabled={!homeAssistantWidget}
+              onClick={() => { void removeWidget('home_assistant') }}
+              style={{ gap: 8 }}
+            >
+              <Trash2 size={14} /> Entfernen
+            </button>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Appdata-Backup" subtitle="Widget für den Appdata-Backup-Status.">
+          <div className="glass" style={{ padding: 12, borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)' }}>
+            {renderStatus('appdata_backup', unraidReady ? null : 'Erst Unraid einrichten.')}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-primary"
+              disabled={!unraidReady || busy === 'appdata_backup'}
+              onClick={() => { void saveWidget('appdata_backup', 'Appdata-Backup', 'none') }}
+              style={{ gap: 8 }}
+            >
+              <LayoutGrid size={14} /> {appdataBackupWidget ? 'Speichern' : 'Einrichten'}
+            </button>
+            <button
+              className="btn btn-ghost"
+              disabled={!appdataBackupWidget}
+              onClick={() => { void removeWidget('appdata_backup') }}
+              style={{ gap: 8 }}
+            >
+              <Trash2 size={14} /> Entfernen
+            </button>
+          </div>
+        </SectionCard>
+      </div>
     </div>
   )
 }
