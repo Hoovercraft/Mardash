@@ -142,3 +142,15 @@ vite.config.ts.timestamp-*
 .claude/
 frontend/dist
 backend/dist
+
+
+# local patch and backup noise
+*.bak
+*.bak_*
+*.bak-*
+*.orig
+*.rej
+*~
+*.tmp
+*.temp
+/tools/apply_mardash_patch.py
