@@ -22,10 +22,6 @@ interface CreateBackgroundBody {
   content_type: string
 }
 
-interface SetGroupBackgroundBody {
-  background_id: string | null
-}
-
 // ── Route plugin ──────────────────────────────────────────────────────────────
 export async function backgroundsRoutes(app: FastifyInstance) {
 
@@ -35,22 +31,15 @@ export async function backgroundsRoutes(app: FastifyInstance) {
     return db.prepare('SELECT * FROM backgrounds ORDER BY created_at DESC').all() as BackgroundRow[]
   })
 
-  // Get the background assigned to the current caller's group
-  // Unauthenticated callers fall back to the grp_guest group's background
-  app.get('/api/backgrounds/mine', { logLevel: 'silent' }, async (req, reply) => {
+  // Get the background assigned for local single-user mode
+  app.get('/api/backgrounds/mine', { logLevel: 'silent' }, async (_req, reply) => {
     const db = getDb()
-    let groupId = 'grp_guest'
-    try {
-      await req.jwtVerify()
-      groupId = req.user.groupId ?? 'grp_guest'
-    } catch { /* not authenticated — use guest group */ }
-
     const row = db.prepare(`
       SELECT b.id, b.name, b.file_path
       FROM backgrounds b
       JOIN user_groups g ON g.background_id = b.id
-      WHERE g.id = ?
-    `).get(groupId) as BackgroundRow | undefined
+      WHERE g.id = 'grp_guest'
+    `).get() as BackgroundRow | undefined
 
     if (!row) return reply.send(null)
     return { id: row.id, name: row.name, url: row.file_path }
@@ -108,21 +97,4 @@ export async function backgroundsRoutes(app: FastifyInstance) {
     return reply.status(204).send()
   })
 
-  // Assign a background to a user group (admin only, background_id may be null to clear)
-  app.put<{ Params: { id: string }; Body: SetGroupBackgroundBody }>(
-    '/api/user-groups/:id/background',
-    { preHandler: app.requireAdmin },
-    async (req, reply) => {
-      const db = getDb()
-      const { background_id } = req.body
-
-      if (background_id != null) {
-        const exists = db.prepare('SELECT id FROM backgrounds WHERE id = ?').get(background_id)
-        if (!exists) return reply.status(404).send({ error: 'Background not found' })
-      }
-
-      db.prepare('UPDATE user_groups SET background_id = ? WHERE id = ?').run(background_id ?? null, req.params.id)
-      return { ok: true }
-    }
-  )
 }

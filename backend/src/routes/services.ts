@@ -120,7 +120,7 @@ export async function servicesRoutes(app: FastifyInstance) {
     let groupId = 'grp_guest'
     try {
       await req.jwtVerify()
-      groupId = req.user.groupId ?? 'grp_guest'
+      groupId = req.user!.groupId ?? 'grp_guest'
     } catch { /* unauthenticated — apply guest group visibility */ }
 
     // Admin group sees everything
@@ -150,7 +150,7 @@ export async function servicesRoutes(app: FastifyInstance) {
     let groupId = 'grp_guest'
     try {
       await req.jwtVerify()
-      groupId = req.user.groupId ?? 'grp_guest'
+      groupId = req.user!.groupId ?? 'grp_guest'
     } catch { /* unauthenticated */ }
 
     if (groupId !== 'grp_admin') {

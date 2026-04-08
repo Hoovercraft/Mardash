@@ -92,41 +92,16 @@ interface ReorderItemsBody {
 // ── Helper ────────────────────────────────────────────────────────────────────
 interface CallerInfo {
   ownerId: string
-  filterGroupId: string | null  // null = admin (no visibility filtering)
   canWrite: boolean
 }
 
-/**
- * Determines who is making the request and what they can do:
- * - Admin (own dashboard):     ownerId=sub,     filterGroupId=null,       canWrite=true
-
- * - Regular user (own dash):   ownerId=sub,     filterGroupId=groupId,    canWrite=true
- * - grp_guest user:            ownerId='guest',  filterGroupId='grp_guest', canWrite=false
- * - Unauthenticated:           ownerId='guest',  filterGroupId='grp_guest', canWrite=false
- */
-async function callerInfo(req: FastifyRequest): Promise<CallerInfo> {
-  const asGuest = (req.query as Record<string, string>).as === 'guest'
-  try {
-    await req.jwtVerify()
-    if (req.user.role === 'admin') {
-      if (asGuest) return { ownerId: 'guest', filterGroupId: 'grp_guest', canWrite: true }
-      return { ownerId: req.user.sub, filterGroupId: null, canWrite: true }
-    }
-    // Non-admin authenticated user
-    const groupId = req.user.groupId ?? 'grp_guest'
-    if (groupId === 'grp_guest') {
-      return { ownerId: 'guest', filterGroupId: 'grp_guest', canWrite: false }
-    }
-    return { ownerId: req.user.sub, filterGroupId: groupId, canWrite: true }
-  } catch {
-    return { ownerId: 'guest', filterGroupId: 'grp_guest', canWrite: false }
-  }
+async function callerInfo(_req: FastifyRequest): Promise<CallerInfo> {
+  return { ownerId: 'local-admin', canWrite: true }
 }
 
 // ── Helper to build enriched dashboard item ────────────────────────────────────
 function buildItem(
   item: DashboardItemRow,
-  filterGroupId: string | null,
   db: Database.Database
 ): Record<string, unknown> | null {
   if (item.type === 'placeholder' || item.type === 'placeholder_app' || item.type === 'placeholder_widget' || item.type === 'placeholder_row') {
@@ -136,18 +111,6 @@ function buildItem(
   if (item.type === 'widget' && item.ref_id) {
     const widget = db.prepare('SELECT * FROM widgets WHERE id = ?').get(item.ref_id) as WidgetRow | undefined
     if (!widget) return null
-    if (filterGroupId !== null) {
-      // docker_overview widgets require docker_widget_access — not controlled by group_widget_visibility
-      if (widget.type === 'docker_overview') {
-        const grp = db.prepare('SELECT docker_widget_access FROM user_groups WHERE id = ?').get(filterGroupId) as { docker_widget_access: number } | undefined
-        if (!grp || grp.docker_widget_access !== 1) return null
-      } else {
-        const hidden = db.prepare(
-          'SELECT 1 FROM group_widget_visibility WHERE group_id = ? AND widget_id = ?'
-        ).get(filterGroupId, item.ref_id)
-        if (hidden) return null
-      }
-    }
     return {
       id: item.id,
       type: 'widget',
@@ -167,12 +130,6 @@ function buildItem(
   }
 
   if (item.type === 'service' && item.ref_id) {
-    if (filterGroupId !== null) {
-      const hidden = db.prepare(
-        'SELECT 1 FROM group_service_visibility WHERE group_id = ? AND service_id = ?'
-      ).get(filterGroupId, item.ref_id)
-      if (hidden) return null
-    }
     const svc = db.prepare('SELECT * FROM services WHERE id = ?').get(item.ref_id) as ServiceRow | undefined
     if (!svc) return null
     return {
@@ -190,12 +147,6 @@ function buildItem(
   }
 
   if (item.type === 'arr_instance' && item.ref_id) {
-    if (filterGroupId !== null) {
-      const hidden = db.prepare(
-        'SELECT 1 FROM group_arr_visibility WHERE group_id = ? AND instance_id = ?'
-      ).get(filterGroupId, item.ref_id)
-      if (hidden) return null
-    }
     const inst = db.prepare(
       'SELECT id, type, name, url, enabled FROM arr_instances WHERE id = ?'
     ).get(item.ref_id) as ArrInstanceRow | undefined
@@ -219,12 +170,12 @@ export async function dashboardRoutes(app: FastifyInstance) {
 
   // GET /api/dashboard — ordered groups and items with embedded data, filtered by owner and group visibility
   app.get('/api/dashboard', async (req) => {
-    const { ownerId, filterGroupId } = await callerInfo(req)
+    const { ownerId } = await callerInfo(req)
     const groupRows = db.prepare('SELECT * FROM dashboard_groups WHERE owner_id = ? ORDER BY position').all(ownerId) as DashboardGroupRow[]
     const items = db.prepare('SELECT * FROM dashboard_items WHERE owner_id = ? ORDER BY position').all(ownerId) as DashboardItemRow[]
 
     // Build all enriched items
-    const allEnriched = items.map(i => buildItem(i, filterGroupId, db)).filter(Boolean)
+    const allEnriched = items.map(i => buildItem(i, db)).filter(Boolean)
 
     // Build groups with their items
     const groups = groupRows.map(g => ({

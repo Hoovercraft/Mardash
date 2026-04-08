@@ -18,8 +18,8 @@ services:
       - ${HOME}/Projekte/Mardash-data:/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      SECRET_KEY: ${MARDASH_SECRET_KEY}
-      SECURE_COOKIES: "false"
+      LOG_LEVEL: ${MARDASH_LOG_LEVEL}
+      LOG_LEVEL: "false"
       LOG_LEVEL: ${MARDASH_LOG_LEVEL:-info}
     restart: unless-stopped
 ```

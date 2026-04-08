@@ -2,8 +2,6 @@ import Fastify, { FastifyRequest, FastifyReply } from 'fastify'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import staticFiles from '@fastify/static'
-import fastifyCookie from '@fastify/cookie'
-import fastifyJwt from '@fastify/jwt'
 import rateLimit from '@fastify/rate-limit'
 import path from 'path'
 import fs from 'fs'
@@ -11,8 +9,7 @@ import { initDb } from './db/database'
 import { servicesRoutes } from './routes/services'
 import { groupsRoutes } from './routes/groups'
 import { settingsRoutes } from './routes/settings'
-import { authRoutes } from './routes/auth'
-import { usersRoutes } from './routes/users'
+import { localSessionRoutes } from './routes/auth'
 import { arrRoutes } from './routes/arr'
 import { dashboardRoutes } from './routes/dashboard'
 import { widgetsRoutes } from './routes/widgets'
@@ -52,8 +49,6 @@ const LOG_LEVEL = process.env.LOG_LEVEL ?? 'info'
 // LOG_FORMAT=json → raw JSON (for log aggregators); default: pino-pretty
 const LOG_FORMAT = process.env.LOG_FORMAT ?? 'pretty'
 const NODE_ENV = process.env.NODE_ENV ?? 'development'
-const LOCAL_AUTH_BYPASS = process.env.LOCAL_AUTH_BYPASS !== 'false'
-const SECRET_KEY = process.env.SECRET_KEY || 'mardash-local-dev-secret'
 const DOCKER_SOCKET = '/var/run/docker.sock'
 
 async function start() {
@@ -95,17 +90,11 @@ async function start() {
     logLevel: LOG_LEVEL,
     logFormat: LOG_FORMAT,
     dockerSocket: dockerSocketPresent ? 'present' : 'missing',
-    secretKey: process.env.SECRET_KEY ? 'set' : 'local default',
-    localAuthBypass: LOCAL_AUTH_BYPASS,
+    localMode: true,
     migrationsApplied,
     nodeEnv: NODE_ENV}, 'MARDASH starting')
 
-  if (!process.env.SECRET_KEY && !LOCAL_AUTH_BYPASS) {
-    app.log.warn('SECRET_KEY not set — using insecure default. Set SECRET_KEY env var in production!')
-  }
-  if (LOCAL_AUTH_BYPASS) {
-    app.log.warn('LOCAL_AUTH_BYPASS active — running without real login')
-  }
+  app.log.info('Single-user local mode active — login and user management are disabled')
   if (!dockerSocketPresent) {
     app.log.warn(`Docker socket not found at ${DOCKER_SOCKET} — Docker features will be unavailable`)
   }
@@ -137,49 +126,20 @@ async function start() {
   await app.register(cors, {
     origin: NODE_ENV === 'development' ? true : false})
 
-  // ── Cookies (must be registered before JWT) ──────────────────────────────────
-  await app.register(fastifyCookie)
-
-  // ── JWT ──────────────────────────────────────────────────────────────────────
-  await app.register(fastifyJwt, {
-    secret: SECRET_KEY,
-    cookie: {
-      cookieName: 'auth_token',
-      signed: false}})
-
-  // ── Local auth bypass ─────────────────────────────────────────────────────────
-  if (LOCAL_AUTH_BYPASS) {
-    app.addHook('preHandler', async (req) => {
-      req.user = {
-        sub: 'local-admin',
-        username: 'lokal',
-        role: 'admin',
-        groupId: null}
-      req.jwtVerify = async () => {}
-    })
-  }
-
-  // ── Auth decorators (available on all routes registered after this point) ────
-  app.decorate('authenticate', async (req: FastifyRequest, reply: FastifyReply) => {
-    if (LOCAL_AUTH_BYPASS) return
-    try {
-      await req.jwtVerify()
-    } catch {
-      return reply.status(401).send({ error: 'Unauthorized' })
+  // ── Single-user local session ────────────────────────────────────────────────
+  app.addHook('preHandler', async (req) => {
+    req.user = {
+      sub: 'local-admin',
+      username: 'lokal',
+      role: 'admin',
+      groupId: null,
     }
+    req.jwtVerify = async () => {}
   })
 
-  app.decorate('requireAdmin', async (req: FastifyRequest, reply: FastifyReply) => {
-    if (LOCAL_AUTH_BYPASS) return
-    try {
-      await req.jwtVerify()
-    } catch {
-      return reply.status(401).send({ error: 'Unauthorized' })
-    }
-    if (req.user.role !== 'admin') {
-      return reply.status(403).send({ error: 'Forbidden' })
-    }
-  })
+  // ── Auth decorators remain available for existing routes ────────────────────
+  app.decorate('authenticate', async () => {})
+  app.decorate('requireAdmin', async () => {})
 
   // ── Override JSON parser to accept empty bodies (prevents FST_ERR_CTP_EMPTY_JSON_BODY) ──
   app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
@@ -258,8 +218,7 @@ async function start() {
   app.get('/api/time', { logLevel: 'silent' }, async () => ({ iso: new Date().toISOString() }))
 
   // ── API routes ───────────────────────────────────────────────────────────────
-  await app.register(authRoutes)
-  await app.register(usersRoutes)
+  await app.register(localSessionRoutes)
   await app.register(servicesRoutes)
   await app.register(groupsRoutes)
   await app.register(arrRoutes)

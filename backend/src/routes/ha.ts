@@ -89,8 +89,8 @@ function sanitizeInstance(r: HaInstanceRow) {
   }
 }
 
-function callerOwnerId(req: FastifyRequest): string {
-  return req.user?.sub ?? 'guest'
+function callerOwnerId(_req: FastifyRequest): string {
+  return 'local-admin'
 }
 
 async function haFetch(
@@ -127,10 +127,11 @@ export async function haRoutes(app: FastifyInstance) {
     } catch {
       return []
     }
+    const user = req.user!
     const rows = db.prepare(
       'SELECT * FROM ha_instances ORDER BY position ASC, created_at ASC'
     ).all() as HaInstanceRow[]
-    if (req.user.role !== 'admin') {
+    if (user.role !== 'admin') {
       return rows.filter(r => r.enabled === 1).map(sanitizeInstance)
     }
     return rows.map(sanitizeInstance)
@@ -292,11 +293,7 @@ export async function haRoutes(app: FastifyInstance) {
 
   // GET /api/ha/panels — list panels for caller
   app.get('/api/ha/panels', async (req) => {
-    let ownerId = 'guest'
-    try {
-      await req.jwtVerify()
-      ownerId = callerOwnerId(req)
-    } catch { /* unauthenticated = guest */ }
+    const ownerId = callerOwnerId(req)
     const rows = db.prepare(
       'SELECT * FROM ha_panels WHERE owner_id = ? ORDER BY position ASC'
     ).all(ownerId) as HaPanelRow[]

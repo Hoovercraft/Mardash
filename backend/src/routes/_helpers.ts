@@ -8,8 +8,9 @@ import { FastifyRequest } from 'fastify'
 export async function callerGroupId(req: FastifyRequest): Promise<string | null> {
   try {
     await req.jwtVerify()
-    if (req.user.role === 'admin') return null
-    return req.user.groupId ?? 'grp_guest'
+    const user = req.user!
+    if (user.role === 'admin') return null
+    return user.groupId ?? 'grp_guest'
   } catch {
     return 'grp_guest'
   }

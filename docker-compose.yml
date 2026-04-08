@@ -13,6 +13,4 @@ services:
       - /mnt/user/logs:/mnt/user/logs:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      SECRET_KEY: ${MARDASH_SECRET_KEY}
-      SECURE_COOKIES: "false"
       LOG_LEVEL: ${MARDASH_LOG_LEVEL:-info}

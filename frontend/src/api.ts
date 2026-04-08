@@ -1,4 +1,4 @@
-import type { Service, Group, Settings, AuthUser, UserRecord, UserGroup, DashboardGroup, DashboardResponse, Widget, WidgetStats, DockerContainer, ContainerStats, Background, HaInstance, HaPanel, HaEntityFull, HaArea, EnergyData, CalendarEntry, HaFloorplan, HaFloorplanEntity, HaAlert, HaHistoryEntry, NetworkDevice, NetworkDeviceHistory, ScanResult, BackupSource, BackupStatusResult, ResourceSnapshot, ChangelogRelease, Instance, InstanceType, HelbackupWidgetStatus, HelbackupJob, HelbackupBackup, HelbackupHistoryEntry, HelbackupLogEvent, AppdataBackupWidgetStats, PollenTopbarStats } from './types'
+import type { Service, Group, Settings, AuthUser, DashboardGroup, DashboardResponse, Widget, WidgetStats, DockerContainer, ContainerStats, Background, HaInstance, HaPanel, HaEntityFull, HaArea, EnergyData, CalendarEntry, HaFloorplan, HaFloorplanEntity, HaAlert, HaHistoryEntry, NetworkDevice, NetworkDeviceHistory, ScanResult, BackupSource, BackupStatusResult, ResourceSnapshot, ChangelogRelease, Instance, InstanceType, HelbackupWidgetStatus, HelbackupJob, HelbackupBackup, HelbackupHistoryEntry, HelbackupLogEvent, AppdataBackupWidgetStats, PollenTopbarStats } from './types'
 import type { UnraidInstance, UnraidInfo, UnraidArray, UnraidParityHistory, UnraidContainer, UnraidVm, UnraidShare, UnraidUser, UnraidNotifications, UnraidConfig, UnraidPhysicalDisk, UnraidService, UnraidFlash, UnraidServer, UnraidOwner, UnraidMe, UnraidNetworkAccess, UnraidConnect, UnraidUpsDevice, UnraidUpsConfig, UnraidLogFile, UnraidPlugin, UnraidApiKey, UnraidDockerNetwork, UnraidMetricsDetailed } from './types/unraid'
 
 const BASE = '/api'
@@ -48,10 +48,6 @@ export const api = {
 
   auth: {
     status: () => req<{ needsSetup: boolean; user: AuthUser | null }>('/auth/status'),
-    setup: (data: { username: string; password: string; first_name: string; last_name: string; email?: string }) =>
-      req<AuthUser>('/auth/setup', { method: 'POST', body: JSON.stringify(data) }),
-    login: (username: string, password: string, rememberMe?: boolean) =>
-      req<AuthUser>('/auth/login', { method: 'POST', body: JSON.stringify({ username, password, remember_me: rememberMe }) }),
     logout: () => req<{ ok: boolean }>('/auth/logout', { method: 'POST', body: JSON.stringify({}) }),
     me: () => req<AuthUser>('/auth/me')},
 
@@ -150,10 +146,7 @@ export const api = {
     upload: (name: string, data: string, content_type: string) =>
       req<Background>('/backgrounds', { method: 'POST', body: JSON.stringify({ name, data, content_type }) }),
     delete: (id: string) => req<void>(`/backgrounds/${id}`, { method: 'DELETE' }),
-    setGroupBackground: (groupId: string, background_id: string | null) =>
-      req<{ ok: boolean }>(`/user-groups/${groupId}/background`, {
-        method: 'PUT',
-        body: JSON.stringify({ background_id })})},
+},
 
   ha: {
     instances: {
@@ -226,6 +219,7 @@ export const api = {
     }},
 
   admin: {
+    guestVisibility: async () => ({ services: [], arr: [], widgets: [] }),
   },
 
   services_extra: {

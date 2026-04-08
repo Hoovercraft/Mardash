@@ -27,8 +27,9 @@ interface UserGroupRow { docker_access: number }
 async function hasDockerAccess(req: FastifyRequest): Promise<boolean> {
   try {
     await req.jwtVerify()
-    if (req.user.role === 'admin') return true
-    const groupId = req.user.groupId
+    const user = req.user!
+    if (user.role === 'admin') return true
+    const groupId = user.groupId
     if (!groupId) return false
     const db = getDb()
     const row = db.prepare('SELECT docker_access FROM user_groups WHERE id = ?').get(groupId) as UserGroupRow | undefined
@@ -407,7 +408,7 @@ export async function dockerRoutes(app: FastifyInstance) {
     }
     await res.body.text().catch(() => {})
     if (res.statusCode === 204 || res.statusCode === 304) {
-      app.log.info({ id, user: req.user.username }, 'Container started')
+      app.log.info({ id, user: req.user!.username }, 'Container started')
       return { ok: true }
     }
     app.log.warn({ id, statusCode: res.statusCode }, 'Failed to start container')
@@ -425,7 +426,7 @@ export async function dockerRoutes(app: FastifyInstance) {
     }
     await res.body.text().catch(() => {})
     if (res.statusCode === 204 || res.statusCode === 304) {
-      app.log.info({ id, user: req.user.username }, 'Container stopped')
+      app.log.info({ id, user: req.user!.username }, 'Container stopped')
       return { ok: true }
     }
     app.log.warn({ id, statusCode: res.statusCode }, 'Failed to stop container')
@@ -443,7 +444,7 @@ export async function dockerRoutes(app: FastifyInstance) {
     }
     await res.body.text().catch(() => {})
     if (res.statusCode === 204) {
-      app.log.info({ id, user: req.user.username }, 'Container restarted')
+      app.log.info({ id, user: req.user!.username }, 'Container restarted')
       return { ok: true }
     }
     app.log.warn({ id, statusCode: res.statusCode }, 'Failed to restart container')
