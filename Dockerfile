@@ -1,3 +1,5 @@
+LABEL org.opencontainers.image.source="https://github.com/Hoovercraft/Mardash"
+
 # Stage 1: Build Frontend
 FROM node:20-bookworm-slim AS frontend-builder
 WORKDIR /app/frontend
