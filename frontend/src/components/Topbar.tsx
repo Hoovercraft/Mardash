@@ -403,13 +403,25 @@ export function Topbar({ page: _page, onNavigate }: Props) {
             const pollen = stats[w.id] as any
             if (!pollen || pollen.error) return null
             return (
-              <div key={w.id} style={{ ...pillStyle, gap: 8, maxWidth: 'fit-content' }}>
+              <button
+                key={w.id}
+                type="button"
+                onClick={() => window.open('https://www.wetteronline.de/pollen/gelsenkirchen', '_blank', 'noopener,noreferrer')}
+                title="Detaillierte Pollenanzeige öffnen"
+                style={{
+                  ...pillStyle,
+                  gap: 8,
+                  maxWidth: 'fit-content',
+                  cursor: 'pointer',
+                  border: '1px solid rgba(var(--accent-rgb), 0.45)',
+                }}
+              >
                 {label('Pollen:')}
                 <PollenDot label="H" level={pollen.hasel} />
                 <PollenDot label="B" level={pollen.birke} />
                 <PollenDot label="G" level={pollen.graeser} />
                 {(pollen.pappel_text || pollen.pappel != null) && <PollenDot label="P" level={pollen.pappel} />}
-              </div>
+              </button>
             )
           }
 

@@ -154,3 +154,5 @@ backend/dist
 *.tmp
 *.temp
 /tools/apply_mardash_patch.py
+
+steam_latest.deb
