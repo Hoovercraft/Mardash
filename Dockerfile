@@ -1,7 +1,6 @@
-LABEL org.opencontainers.image.source="https://github.com/Hoovercraft/Mardash"
-
 # Stage 1: Build Frontend
 FROM node:20-bookworm-slim AS frontend-builder
+LABEL org.opencontainers.image.source="https://github.com/Hoovercraft/Mardash"
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
