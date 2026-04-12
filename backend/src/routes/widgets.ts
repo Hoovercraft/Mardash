@@ -512,6 +512,9 @@ async function getPollenStats(): Promise<Record<string, unknown>> {
   }
 }
 
+
+const POLLEN_SOURCE_URL = 'https://www.onmeda.de/biowetter/gelsenkirchen-id217708/'
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 export async function widgetsRoutes(app: FastifyInstance) {
   const db = getDb()

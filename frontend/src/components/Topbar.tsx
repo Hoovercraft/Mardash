@@ -26,9 +26,9 @@ const WEATHER_ICONS: Record<number, string> = {
 
 function pollenTone(level?: number | null) {
   if (level == null) return 'var(--text-muted)'
-  if (level >= 5) return 'var(--status-offline)'
-  if (level >= 3) return '#f59e0b'
-  if (level >= 1) return 'var(--status-online)'
+  if (level >= 3) return 'var(--status-offline)'
+  if (level >= 2) return '#f59e0b'
+  if (level >= 1) return '#facc15'
   return 'var(--text-muted)'
 }
 
