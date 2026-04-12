@@ -6,7 +6,7 @@ import { useWidgetStore } from '../store/useWidgetStore'
 import { useDockerStore } from '../store/useDockerStore'
 import { useUnraidStore } from '../store/useUnraidStore'
 import { api } from '../api'
-import type { ServerStats, HaEntityState, NpmStats, CalendarEntry, WeatherStats } from '../types'
+import type { ServerStats, HaEntityState, NpmStats, CalendarEntry, WeatherStats, PollenTopbarStats } from '../types'
 import { containerCounts } from '../utils'
 
 const WEATHER_ICONS: Record<number, string> = {
@@ -25,37 +25,32 @@ const WEATHER_ICONS: Record<number, string> = {
 
 
 function pollenTone(level?: number | null) {
-  if (level == null) return 'var(--text-muted)'
+  if (level == null || level <= 0) return 'var(--text-muted)'
   if (level >= 3) return 'var(--status-offline)'
   if (level >= 2) return '#f59e0b'
-  if (level >= 1) return '#facc15'
-  return 'var(--text-muted)'
+  return '#facc15'
 }
 
-function PollenDot({ label, level }: { label: string; level?: number | null }) {
+function PollenBadge({ label, level }: { label: string; level?: number | null }) {
   const color = pollenTone(level)
+  const value = level == null ? '–' : String(level)
+
   return (
     <span
-      title={label}
+      title={`${label}: ${value}`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 5,
+        gap: 4,
         whiteSpace: 'nowrap',
+        padding: '2px 6px',
+        borderRadius: 999,
+        border: `1px solid ${color}`,
+        background: `${color}18`,
       }}
     >
       <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{label}</span>
-      <span
-        style={{
-          width: 9,
-          height: 9,
-          borderRadius: '50%',
-          background: color,
-          boxShadow: `0 0 6px ${color}`,
-          display: 'inline-block',
-          flexShrink: 0,
-        }}
-      />
+      <span style={{ color, fontFamily: 'var(--font-mono)', fontWeight: 700, minWidth: 8, textAlign: 'center' }}>{value}</span>
     </span>
   )
 }
@@ -400,14 +395,14 @@ export function Topbar({ page: _page, onNavigate }: Props) {
           }
 
           if (w.type === 'pollen') {
-            const pollen = stats[w.id] as any
+            const pollen = stats[w.id] as PollenTopbarStats | undefined
             if (!pollen || pollen.error) return null
             return (
               <button
                 key={w.id}
                 type="button"
                 onClick={() => window.open('https://www.wetteronline.de/pollen/gelsenkirchen', '_blank', 'noopener,noreferrer')}
-                title="Detaillierte Pollenanzeige öffnen"
+                title="WetterOnline Pollen öffnen"
                 style={{
                   ...pillStyle,
                   gap: 8,
@@ -417,10 +412,10 @@ export function Topbar({ page: _page, onNavigate }: Props) {
                 }}
               >
                 {label('Pollen:')}
-                <PollenDot label="H" level={pollen.hasel} />
-                <PollenDot label="B" level={pollen.birke} />
-                <PollenDot label="G" level={pollen.graeser} />
-                {(pollen.pappel_text || pollen.pappel != null) && <PollenDot label="P" level={pollen.pappel} />}
+                <PollenBadge label="H" level={pollen.hasel} />
+                <PollenBadge label="B" level={pollen.birke} />
+                <PollenBadge label="G" level={pollen.graeser} />
+                {(pollen.pappel_text || pollen.pappel != null) && <PollenBadge label="P" level={pollen.pappel} />}
               </button>
             )
           }

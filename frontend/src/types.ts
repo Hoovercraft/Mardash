@@ -169,12 +169,18 @@ export interface WeatherStats {
 
 export interface PollenTopbarStats {
   hasel: number | null
+  hasel_text?: string | null
   birke: number | null
+  birke_text?: string | null
   graeser: number | null
-  level: 'low' | 'medium' | 'high' | 'unknown'
+  graeser_text?: string | null
+  pappel?: number | null
+  pappel_text?: string | null
+  level: number | null
   label: string
   source_region: string | null
   updated_at: string | null
+  source_url?: string
   error?: string
 }
 
